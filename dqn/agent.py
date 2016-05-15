@@ -23,15 +23,16 @@ class Agent(BaseModel):
     self.memory = ReplayMemory(self.config)
 
     self.step_op = tf.Variable(0, trainable=False)
-    self.ep_op = tf.Variable(self.ep_start, trainable=False)
 
     self.build_dqn()
 
   def train(self):
     tf.initialize_all_variables().run()
 
-    self.update_target_q_network()
+    self._saver = tf.train.Saver(self.w.values() + [self.step_op], max_to_keep=10)
+
     self.load_model()
+    self.update_target_q_network()
 
     start_step = self.step_op.eval()
     start_time = time.time()
