@@ -4,7 +4,7 @@ import numpy as np
 from tqdm import tqdm
 import tensorflow as tf
 
-from utils import inject_summary, timeit
+from utils import inject_summary, get_time
 from .base import BaseModel
 from .history import History
 from .ops import linear, conv2d
@@ -16,8 +16,8 @@ class Agent(BaseModel):
 
     self.sess = sess
     self.env = environment
-    self.history = History(config)
-    self.memory = Memory(config)
+    self.history = History(self.config)
+    self.memory = Memory(self.config)
 
     self.step_op = tf.Variable(0, trainable=False)
     self.ep_op = tf.Variable(self.ep_start, trainable=False)
@@ -59,6 +59,8 @@ class Agent(BaseModel):
         screen, reward, terminal = self.env.act(action, is_training=True)
         ep_reward += reward
 
+      total_reward += reward
+
       if self.step > self.learn_start:
         if self.step % self.test_step == self.test_step - 1:
           avg_reward = total_reward / self.test_step
@@ -87,8 +89,33 @@ class Agent(BaseModel):
         if self.step % self.save_step == self.save_step - 1:
           self.step_op.assign(self.step + 1).eval()
           self.save_model(self.step + 1)
-      else:
-        total_reward += reward
+
+  def play(self, n_step=1000, n_episode=20, test_ep=0.01, render=False):
+    test_history = History(self.config)
+
+    self.env.monitor.start('/tmp/%s-%s' % (self.env_name, get_time()))
+    for i_episode in xrange(n_episode):
+      screen = self.env.new_game()
+
+      for _ in xrange(self.history_length):
+        test_history.add(screen)
+
+      for t in xrange(n_step):
+        if render: self.env.render()
+
+        if random.random() < test_ep:
+          action = random.randint(0, self.env.action_size - 1)
+        else:
+          action = self.q_action.eval({self.s_t: self.history.get()})
+
+        screen, reward, done, _ = self.env.act(action, is_training=False)
+        test_history.add(screen)
+
+        if done:
+          print "Episode finished after {} timesteps".format(t+1)
+          break
+
+    self.env.monitor.close()
 
   def perceive(self, screen, reward, action, terminal, test_ep=None):
     # reward clipping

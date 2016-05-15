@@ -14,6 +14,7 @@ class BaseModel(object):
   """Abstract object representing an Reader model."""
   def __init__(self, config):
     self._saver = None
+    self.config = config
     self.checkpoint_dir = "checkpoints"
 
     try:

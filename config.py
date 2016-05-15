@@ -64,5 +64,10 @@ def get_config(FLAGS):
   elif FLAGS.model == 'm4':
     config = M4
   else:
-    raise ValueError(" [!] Invalid model: %s", FLAGS.model)
+    config = M1
+
+  for k, v in FLAGS.__dict__['__flags'].items():
+    if hasattr(config, k):
+      setattr(config, k, v)
+
   return config

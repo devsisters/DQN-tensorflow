@@ -14,9 +14,15 @@ Tensorflow implementation of [Asynchronous Methods for Deep Reinforcement Learni
 Please enter:
 
     $ pip install tqdm gym
+    $ python main.py --env_name=Breakout-v0 --train=True
+    $ python main.py --test=True
 
 
 ## References
 
 - [simple_dqn](https://github.com/tambetm/simple_dqn.git)
 - [async_rl](https://github.com/muupan/async-rl)
+
+## License
+
+MIT License.

@@ -51,6 +51,13 @@ class GymEnvironment(object):
     action = x.action_space.sample()
     self._screen, self.reward, self.terminal, _ = self.env.step(action)
 
+  def render(self):
+    return self.env.render()
+
+  @property
+  def monitor(self):
+    return self.env.monitor
+
   @property
   def state(self):
     return self.screen, self.reward, self.terminal

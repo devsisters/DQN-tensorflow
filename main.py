@@ -6,6 +6,8 @@ from config import get_config
 
 flags = tf.app.flags
 flags.DEFINE_string('model', 'nature', 'Type of model')
+flags.DEFINE_string('env_name', 'Breakout-v0', 'The name of gym environment to use')
+flags.DEFINE_boolean('is_train', True, 'Whether to do training or testing')
 FLAGS = flags.FLAGS
 
 def main(_):
@@ -23,7 +25,11 @@ def main(_):
                           action_repeat=config.action_repeat,
                           random_start=config.random_start)
     agent = Agent(config, env, sess)
-    agent.train()
+
+    if FLAGS.is_train:
+      agent.train()
+    else:
+      agent.play()
 
 if __name__ == '__main__':
   tf.app.run()
