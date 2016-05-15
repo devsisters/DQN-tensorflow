@@ -20,7 +20,7 @@ class AgentConfig(object):
   min_delta = -1
   max_delta = 1
 
-  _test_step = 50000
+  _test_step = 10000
   _save_step = _test_step * 5
 
 class EnvironmentConfig(object):

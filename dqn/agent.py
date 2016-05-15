@@ -59,32 +59,34 @@ class Agent(BaseModel):
         screen, reward, terminal = self.env.act(action, is_training=True)
         ep_reward += reward
 
-      if self.step > self.learn_start and self.step % self.test_step == self.test_step - 1:
-        avg_reward = total_reward / self.test_step
-        avg_loss = self.total_loss / self.update_count
-        avg_q = self.total_q / self.update_count
+      if self.step > self.learn_start:
+        if self.step % self.test_step == self.test_step - 1:
+          avg_reward = total_reward / self.test_step
+          avg_loss = self.total_loss / self.update_count
+          avg_q = self.total_q / self.update_count
 
-        print "\navg_r: %.4f, avg_l: %.6f, avg_q: %3.6f, max_ep_r: %.4f, min_ep_r: %.4f, # game: %d" \
-            % (avg_reward, avg_loss, avg_q, max_ep_reward, min_ep_reward, num_game)
+          print "\navg_r: %.4f, avg_l: %.6f, avg_q: %3.6f, max_ep_r: %.4f, min_ep_r: %.4f, # game: %d" \
+              % (avg_reward, avg_loss, avg_q, max_ep_reward, min_ep_reward, num_game)
 
-        inject_summary(self.writer, "average reward", avg_reward, self.step)
-        inject_summary(self.writer, "average loss", avg_loss, self.step)
-        inject_summary(self.writer, "average q", avg_q, self.step)
-        inject_summary(self.writer, "max episode reward", max_ep_reward, self.step)
-        inject_summary(self.writer, "min episode reward", min_ep_reward, self.step)
-        inject_summary(self.writer, "# of game", num_game, self.step)
+          inject_summary(self.writer, "average reward", avg_reward, self.step)
+          inject_summary(self.writer, "average loss", avg_loss, self.step)
+          inject_summary(self.writer, "average q", avg_q, self.step)
+          inject_summary(self.writer, "max episode reward", max_ep_reward, self.step)
+          inject_summary(self.writer, "min episode reward", min_ep_reward, self.step)
+          inject_summary(self.writer, "# of game", num_game, self.step)
 
-        num_game = 0
-        total_reward = 0.
-        self.total_loss = 0.
-        self.total_q = 0.
-        self.update_count = 0
-        ep_reward = 0.
-        max_ep_reward = 0.
-        min_ep_reward = 99999.
+          num_game = 0
+          total_reward = 0.
+          self.total_loss = 0.
+          self.total_q = 0.
+          self.update_count = 0
+          ep_reward = 0.
+          max_ep_reward = 0.
+          min_ep_reward = 99999.
 
-        self.step_op.assign(self.step + 1).eval()
-        self.save_model(self.step + 1)
+        if self.step % self.save_step == self.save_step - 1:
+          self.step_op.assign(self.step + 1).eval()
+          self.save_model(self.step + 1)
       else:
         total_reward += reward
 
