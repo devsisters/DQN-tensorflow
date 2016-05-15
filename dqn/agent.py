@@ -122,12 +122,12 @@ class Agent(BaseModel):
     reward = max(self.min_reward, min(self.max_reward, reward))
 
     # add memory
-    s_t = self.history.get()
+    s_t = self.history.get().copy()
     self.history.add(screen)
-    s_t_plus_1 = self.history.get()
+    s_t_plus_1 = self.history.get().copy()
 
     if test_ep == None:
-      self.memory.add(s_t[0], reward, action, s_t_plus_1[0], terminal)
+      self.memory.add(s_t, reward, action, s_t_plus_1, terminal)
 
     # e greedy
     ep = test_ep or (self.ep_end +
