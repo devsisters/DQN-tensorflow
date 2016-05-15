@@ -23,7 +23,6 @@ def main(_):
                           action_repeat=config.action_repeat,
                           random_start=config.random_start)
     agent = Agent(config, env, sess)
-
     agent.train()
 
 if __name__ == '__main__':

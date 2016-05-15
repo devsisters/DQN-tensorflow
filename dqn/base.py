@@ -13,6 +13,7 @@ def class_vars(obj):
 class BaseModel(object):
   """Abstract object representing an Reader model."""
   def __init__(self, config):
+    self._saver = None
     self.checkpoint_dir = "checkpoints"
 
     try:
@@ -24,11 +25,10 @@ class BaseModel(object):
     self.config = config
 
     for attr in self._attrs:
-      setattr(self, attr, getattr(self.config, attr))
+      name = attr if not attr.startswith('_') else attr[1:]
+      setattr(self, name, getattr(self.config, attr))
 
   def save_model(self, step=None):
-    self.saver = tf.train.Saver(max_to_keep=10)
-
     print(" [*] Saving checkpoints...")
     model_name = type(self).__name__
 
@@ -39,8 +39,6 @@ class BaseModel(object):
         os.path.join(checkpoint_dir, model_name), global_step=step)
 
   def load_model(self):
-    self.saver = tf.train.Saver()
-
     print(" [*] Loading checkpoints...")
     checkpoint_dir = os.path.join(self.checkpoint_dir, self.model_dir)
 
@@ -59,6 +57,13 @@ class BaseModel(object):
   def model_dir(self):
     model_dir = self.config.env_name
     for k, v in self._attrs.items():
-      model_dir += "/%s:%s" % (k, ",".join([str(i) for i in v])
-          if type(v) == list else v)
+      if not k.startswith('_'):
+        model_dir += "/%s:%s" % (k, ",".join([str(i) for i in v])
+            if type(v) == list else v)
     return model_dir
+
+  @property
+  def saver(self):
+    if self._saver == None:
+      self._saver = tf.train.Saver(max_to_keep=10)
+    return self._saver

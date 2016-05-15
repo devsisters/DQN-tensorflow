@@ -30,7 +30,7 @@ class Agent(BaseModel):
     self.update_target_q_network()
     self.load_model()
 
-    start_step = self.step.eval()
+    start_step = self.step_op.eval()
     start_time = time.time()
 
     num_game = 0
@@ -44,7 +44,7 @@ class Agent(BaseModel):
 
     screen, reward, action, terminal = self.env.new_random_game()
 
-    for self.step in tqdm(range(start_step, self.max_step), ncols=100):
+    for self.step in tqdm(range(start_step, self.max_step), ncols=100, initial=start_step):
       action = self.perceive(screen, reward, action, terminal)
 
       if terminal:
@@ -83,8 +83,8 @@ class Agent(BaseModel):
         max_ep_reward = 0.
         min_ep_reward = 99999.
 
-        self.step_op.assign(self.step).eval()
-        self.save_model()
+        self.step_op.assign(self.step + 1).eval()
+        self.save_model(self.step + 1)
       else:
         total_reward += reward
 
@@ -93,11 +93,12 @@ class Agent(BaseModel):
     reward = max(self.min_reward, min(self.max_reward, reward))
 
     # add memory
-    prev_hist = self.history.get()
+    s_t = self.history.get()
     self.history.add(screen)
+    s_t_plus_1 = self.history.get()
 
     if test_ep == None:
-      self.memory.add(prev_hist[0], reward, action, self.history.get()[0], terminal)
+      self.memory.add(s_t[0], reward, action, s_t_plus_1[0], terminal)
 
     # e greedy
     ep = test_ep or (self.ep_end +
@@ -107,10 +108,17 @@ class Agent(BaseModel):
     if random.random() < ep:
       action = random.randint(0, self.env.action_size - 1)
     else:
-      action = self.q_action.eval({self.s_t: self.history.get()})
+      s_t = self.history.get()
+
+      if self.backend == 'tf':
+        action = self.q_action.eval({self.s_t: s_t})
+      else:
+        self._setInput(s_t)
+        qvalues = self.model.fprop(self.input, inference = True).T.asnumpyarray()
+        action = np.argmax(qvalues[0])
 
     if self.step > self.learn_start:
-      if test_ep == None:
+      if test_ep == None and self.step % self.train_frequency == 0:
         self.q_learning_mini_batch()
 
       if self.step % self.target_q_update_step == self.target_q_update_step - 1:
@@ -170,6 +178,19 @@ class Agent(BaseModel):
       self.optimizer = RMSProp(learning_rate = args.learning_rate,
           decay_rate = args.decay_rate,
           stochastic_round = stochastic_round)
+
+      self.target_steps = self.target_q_update_step
+      self.train_iterations = 0
+      if self.target_steps:
+        self.target_model = Model(layers = self._create_neon_layers(num_actions))
+        for l in self.target_model.layers.layers:
+          l.parallelism = 'Disabled'
+        self.target_model.initialize(self.input_shape[:-1])
+        self.save_weights_prefix = args.save_weights_prefix
+      else:
+        self.target_model = self.model
+
+      self.callback = None
     elif self.backend == 'tf':
       self.w = {}
       self.t_w = {}
@@ -231,7 +252,7 @@ class Agent(BaseModel):
       q_acted = tf.reduce_sum(self.q * action_one_hot, reduction_indices=1)
 
       self.delta = self.target_q_t - q_acted
-      self.clipped_delta = tf.clip_by_value(self.delta, -1, 1)
+      self.clipped_delta = tf.clip_by_value(self.delta, self.min_delta, self.max_delta)
 
       self.loss = tf.reduce_mean(tf.square(self.clipped_delta))
       self.optim = tf.train.RMSPropOptimizer(self.learning_rate, momentum=0.95, epsilon=0.01).minimize(self.loss)
@@ -254,3 +275,8 @@ class Agent(BaseModel):
     layers.append(Affine(nout=512, init=init_norm, activation=Rectlin()))
     layers.append(Affine(nout=self.env.action_size, init = init_norm))
     return layers
+
+  def _setInput(self, states):
+    states = np.transpose(states, axes = (1, 2, 3, 0))
+    self.input.set(states.copy())
+    self.be.divide(self.input, 255, self.input)

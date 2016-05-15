@@ -14,7 +14,12 @@ class Memory(object):
       self.m.popleft()
 
   def sample(self):
-    return self.deserialize(random.sample(self.m, self.batch_size))
+    m_length = len(self.m)
+
+    if m_length >= self.batch_size:
+      return self.deserialize(random.sample(self.m, self.batch_size))
+    else:
+      return self.deserialize(random.sample(self.m, m_length))
 
   def deserialize(self, ms):
     screens = [m[0] for m in ms]
