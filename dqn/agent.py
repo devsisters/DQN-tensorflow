@@ -9,6 +9,7 @@ from .base import BaseModel
 from .history import History
 from .ops import linear, conv2d
 from .memory import Memory
+from .replay_memory import ReplayMemory
 
 class Agent(BaseModel):
   def __init__(self, config, environment, sess):
@@ -17,7 +18,9 @@ class Agent(BaseModel):
     self.sess = sess
     self.env = environment
     self.history = History(self.config)
-    self.memory = Memory(self.config)
+
+    #self.memory = Memory(self.config)
+    self.memory = ReplayMemory(self.config)
 
     self.step_op = tf.Variable(0, trainable=False)
     self.ep_op = tf.Variable(self.ep_start, trainable=False)
@@ -122,12 +125,12 @@ class Agent(BaseModel):
     reward = max(self.min_reward, min(self.max_reward, reward))
 
     # add memory
-    s_t = self.history.get().copy()
-    self.history.add(screen)
-    s_t_plus_1 = self.history.get().copy()
+    # s_t = self.history.get().copy()
+    # self.history.add(screen)
+    # s_t_plus_1 = self.history.get().copy()
 
     if test_ep == None:
-      self.memory.add(s_t, reward, action, s_t_plus_1, terminal)
+      self.memory.add(screen, reward, action, terminal)
 
     # e greedy
     ep = test_ep or (self.ep_end +
@@ -149,7 +152,10 @@ class Agent(BaseModel):
     return action
 
   def q_learning_mini_batch(self):
-    s_t, action, reward, s_t_plus_1, terminal = self.memory.sample()
+    if self.memory.count < self.history_length:
+      return
+    else:
+      s_t, action, reward, s_t_plus_1, terminal = self.memory.sample()
 
     t = time.time()
     q_t_plus_1 = self.target_q.eval({self.target_s_t: s_t_plus_1})
