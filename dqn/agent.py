@@ -108,14 +108,7 @@ class Agent(BaseModel):
     if random.random() < ep:
       action = random.randint(0, self.env.action_size - 1)
     else:
-      s_t = self.history.get()
-
-      if self.backend == 'tf':
-        action = self.q_action.eval({self.s_t: s_t})
-      else:
-        self._setInput(s_t)
-        qvalues = self.model.fprop(self.input, inference = True).T.asnumpyarray()
-        action = np.argmax(qvalues[0])
+      action = self.q_action.eval({self.s_t: self.history.get()})
 
     if self.step > self.learn_start:
       if test_ep == None and self.step % self.train_frequency == 0:
@@ -147,136 +140,74 @@ class Agent(BaseModel):
     self.update_count += 1
 
   def build_dqn(self):
-    if self.backend == 'neon':
-      from neon.backends import gen_backend
-      from neon.optimizers import RMSProp
-      from neon.layers import Affine, Conv, GeneralizedCost
-      from neon.transforms import Rectlin
-      from neon.models import Model
-      from neon.transforms import SumSquared
+    self.w = {}
+    self.t_w = {}
 
-      stochastic_round = True
+    #initializer = tf.contrib.layers.xavier_initializer()
+    initializer = tf.truncated_normal_initializer(0, 0.02)
+    activation_fn = tf.nn.relu
 
-      self.be = gen_backend(backend = 'gpu',
-          batch_size = self.batch_size,
-          datatype = np.dtype('float32').type,
-          stochastic_round = stochastic_round)
+    # training network
+    if self.cnn_format == 'NCHW':
+      self.s_t = tf.placeholder('float32',
+          [None, self.history_length, self.screen_width, self.screen_height], name='s_t')
+    else:
+      self.s_t = tf.placeholder('float32',
+          [None, self.screen_width, self.screen_height, self.history_length], name='s_t')
 
-      self.input_shape = (self.history_length, args.screen_height, args.screen_width, self.batch_size)
-      self.s_t = self.be.empty(self.input_shape)
-      self.s_t.lshape = self.input_shape # HACK: needed for convolutional networks
-      self.target_q = self.be.empty((self.num_actions, self.batch_size))
+    self.l1, self.w['l1_w'], self.w['l1_b'] = conv2d(self.s_t,
+        32, [8, 8], [4, 4], initializer, activation_fn, self.cnn_format, name='l1')
+    self.l2, self.w['l2_w'], self.w['l2_b'] = conv2d(self.l1,
+        64, [4, 4], [2, 2], initializer, activation_fn, self.cnn_format, name='l2')
+    self.l3, self.w['l3_w'], self.w['l3_b'] = conv2d(self.l2,
+        64, [3, 3], [1, 1], initializer, activation_fn, self.cnn_format, name='l3')
 
-      layers = self._create_neon_layers(num_actions)
-      self.model = Model(layers = layers)
-      self.loss = GeneralizedCost(costfunc = SumSquared())
+    shape = self.l3.get_shape().as_list()
+    self.l3_flat = tf.reshape(self.l3, [-1, reduce(lambda x, y: x * y, shape[1:])])
 
-      for l in self.model.layers.layers:
-        l.parallelism = 'Disabled'
+    self.l4, self.w['l4_w'], self.w['l4_b'] = linear(self.l3_flat, 512, activation_fn=activation_fn, name='l4')
+    self.q, self.w['q_w'], self.w['q_b'] = linear(self.l4, self.env.action_size, name='q')
+    self.q_action = tf.argmax(self.q, dimension=1)
 
-      self.model.initialize(self.input_shape[:-1], self.cost)
-      self.optimizer = RMSProp(learning_rate = args.learning_rate,
-          decay_rate = args.decay_rate,
-          stochastic_round = stochastic_round)
+    # target network
+    if self.cnn_format == 'NCHW':
+      self.target_s_t = tf.placeholder('float32', 
+          [None, self.history_length, self.screen_width, self.screen_height], name='target_s_t')
+    else:
+      self.target_s_t = tf.placeholder('float32', 
+          [None, self.screen_width, self.screen_height, self.history_length], name='target_s_t')
 
-      self.target_steps = self.target_q_update_step
-      self.train_iterations = 0
-      if self.target_steps:
-        self.target_model = Model(layers = self._create_neon_layers(num_actions))
-        for l in self.target_model.layers.layers:
-          l.parallelism = 'Disabled'
-        self.target_model.initialize(self.input_shape[:-1])
-        self.save_weights_prefix = args.save_weights_prefix
-      else:
-        self.target_model = self.model
+    self.target_l1, self.t_w['l1_w'], self.t_w['l1_b'] = conv2d(self.target_s_t, 
+        32, [8, 8], [4, 4], initializer, activation_fn, self.cnn_format, name='target_l1')
+    self.target_l2, self.t_w['l2_w'], self.t_w['l2_b'] = conv2d(self.target_l1,
+        64, [4, 4], [2, 2], initializer, activation_fn, self.cnn_format, name='target_l2')
+    self.target_l3, self.t_w['l3_w'], self.t_w['l3_b'] = conv2d(self.target_l2,
+        64, [3, 3], [1, 1], initializer, activation_fn, self.cnn_format, name='target_l3')
 
-      self.callback = None
-    elif self.backend == 'tf':
-      self.w = {}
-      self.t_w = {}
+    shape = self.target_l3.get_shape().as_list()
+    self.target_l3_flat = tf.reshape(self.target_l3, [-1, reduce(lambda x, y: x * y, shape[1:])])
 
-      #initializer = tf.contrib.layers.xavier_initializer()
-      initializer = tf.truncated_normal_initializer(0, 0.02)
-      activation_fn = tf.nn.relu
+    self.target_l4, self.t_w['l4_w'], self.t_w['l4_b'] = \
+        linear(self.target_l3_flat, 512, activation_fn=activation_fn, name='target_l4')
+    self.target_q, self.t_w['q_w'], self.t_w['q_b'] = \
+        linear(self.target_l4, self.env.action_size, name='target_q')
 
-      # training network
-      if self.cnn_format == 'NCHW':
-        self.s_t = tf.placeholder('float32',
-            [None, self.history_length, self.screen_width, self.screen_height], name='s_t')
-      else:
-        self.s_t = tf.placeholder('float32',
-            [None, self.screen_width, self.screen_height, self.history_length], name='s_t')
+    # optimizer
+    self.target_q_t = tf.placeholder('float32', [None])
+    self.action = tf.placeholder('int64', [None])
 
-      self.l1, self.w['l1_w'], self.w['l1_b'] = conv2d(self.s_t,
-          32, [8, 8], [4, 4], initializer, activation_fn, self.cnn_format, name='l1')
-      self.l2, self.w['l2_w'], self.w['l2_b'] = conv2d(self.l1,
-          64, [4, 4], [2, 2], initializer, activation_fn, self.cnn_format, name='l2')
-      self.l3, self.w['l3_w'], self.w['l3_b'] = conv2d(self.l2,
-          64, [3, 3], [1, 1], initializer, activation_fn, self.cnn_format, name='l3')
+    action_one_hot = tf.one_hot(self.action, self.env.action_size, 1.0, 0.0)
+    q_acted = tf.reduce_sum(self.q * action_one_hot, reduction_indices=1)
 
-      shape = self.l3.get_shape().as_list()
-      self.l3_flat = tf.reshape(self.l3, [-1, reduce(lambda x, y: x * y, shape[1:])])
+    self.delta = self.target_q_t - q_acted
+    self.clipped_delta = tf.clip_by_value(self.delta, self.min_delta, self.max_delta)
 
-      self.l4, self.w['l4_w'], self.w['l4_b'] = linear(self.l3_flat, 512, activation_fn=activation_fn, name='l4')
-      self.q, self.w['q_w'], self.w['q_b'] = linear(self.l4, self.env.action_size, name='q')
-      self.q_action = tf.argmax(self.q, dimension=1)
+    self.loss = tf.reduce_mean(tf.square(self.clipped_delta))
+    self.optim = tf.train.RMSPropOptimizer(self.learning_rate, momentum=0.95, epsilon=0.01).minimize(self.loss)
 
-      # target network
-      if self.cnn_format == 'NCHW':
-        self.target_s_t = tf.placeholder('float32', 
-            [None, self.history_length, self.screen_width, self.screen_height], name='target_s_t')
-      else:
-        self.target_s_t = tf.placeholder('float32', 
-            [None, self.screen_width, self.screen_height, self.history_length], name='target_s_t')
-
-      self.target_l1, self.t_w['l1_w'], self.t_w['l1_b'] = conv2d(self.target_s_t, 
-          32, [8, 8], [4, 4], initializer, activation_fn, self.cnn_format, name='target_l1')
-      self.target_l2, self.t_w['l2_w'], self.t_w['l2_b'] = conv2d(self.target_l1,
-          64, [4, 4], [2, 2], initializer, activation_fn, self.cnn_format, name='target_l2')
-      self.target_l3, self.t_w['l3_w'], self.t_w['l3_b'] = conv2d(self.target_l2,
-          64, [3, 3], [1, 1], initializer, activation_fn, self.cnn_format, name='target_l3')
-
-      shape = self.target_l3.get_shape().as_list()
-      self.target_l3_flat = tf.reshape(self.target_l3, [-1, reduce(lambda x, y: x * y, shape[1:])])
-
-      self.target_l4, self.t_w['l4_w'], self.t_w['l4_b'] = \
-          linear(self.target_l3_flat, 512, activation_fn=activation_fn, name='target_l4')
-      self.target_q, self.t_w['q_w'], self.t_w['q_b'] = \
-          linear(self.target_l4, self.env.action_size, name='target_q')
-
-      # optimizer
-      self.target_q_t = tf.placeholder('float32', [None])
-      self.action = tf.placeholder('int64', [None])
-
-      action_one_hot = tf.one_hot(self.action, self.env.action_size, 1.0, 0.0)
-      q_acted = tf.reduce_sum(self.q * action_one_hot, reduction_indices=1)
-
-      self.delta = self.target_q_t - q_acted
-      self.clipped_delta = tf.clip_by_value(self.delta, self.min_delta, self.max_delta)
-
-      self.loss = tf.reduce_mean(tf.square(self.clipped_delta))
-      self.optim = tf.train.RMSPropOptimizer(self.learning_rate, momentum=0.95, epsilon=0.01).minimize(self.loss)
-
-      self.summary = tf.merge_all_summaries()
-      self.writer = tf.train.SummaryWriter("./logs/%s" % self.model_dir, self.sess.graph)
+    self.summary = tf.merge_all_summaries()
+    self.writer = tf.train.SummaryWriter("./logs/%s" % self.model_dir, self.sess.graph)
 
   def update_target_q_network(self):
     for name in self.w.keys():
       self.t_w[name].assign(self.w[name].eval()).eval()
-
-  def _create_neon_layers(self):
-    init_norm = Gaussian(loc=0.0, scale=0.01)
-    layers = []
-
-    layers.append(Conv((8, 8, 32), strides=4, init=init_norm, activation=Rectlin()))
-    layers.append(Conv((4, 4, 64), strides=2, init=init_norm, activation=Rectlin()))
-    layers.append(Conv((3, 3, 64), strides=1, init=init_norm, activation=Rectlin()))
-
-    layers.append(Affine(nout=512, init=init_norm, activation=Rectlin()))
-    layers.append(Affine(nout=self.env.action_size, init = init_norm))
-    return layers
-
-  def _setInput(self, states):
-    states = np.transpose(states, axes = (1, 2, 3, 0))
-    self.input.set(states.copy())
-    self.be.divide(self.input, 255, self.input)
