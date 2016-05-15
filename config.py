@@ -32,6 +32,7 @@ class EnvironmentConfig(object):
   min_reward = -1.
 
 class DQNConfig(AgentConfig, EnvironmentConfig):
+  model = ''
   pass
 
 class M1(DQNConfig):

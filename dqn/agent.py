@@ -106,7 +106,7 @@ class Agent(BaseModel):
         if random.random() < test_ep:
           action = random.randint(0, self.env.action_size - 1)
         else:
-          action = self.q_action.eval({self.s_t: self.history.get()})
+          action = self.q_action.eval({self.s_t: [self.history.get()]})
 
         screen, reward, done, _ = self.env.act(action, is_training=False)
         test_history.add(screen)
@@ -137,7 +137,7 @@ class Agent(BaseModel):
     if random.random() < ep:
       action = random.randint(0, self.env.action_size - 1)
     else:
-      action = self.q_action.eval({self.s_t: self.history.get()})
+      action = self.q_action.eval({self.s_t: [self.history.get()]})
 
     if self.step > self.learn_start:
       if test_ep == None and self.step % self.train_frequency == 0:
