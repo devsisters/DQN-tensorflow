@@ -68,12 +68,12 @@ class Agent(BaseModel):
           print "\navg_r: %.4f, avg_l: %.6f, avg_q: %3.6f, max_ep_r: %.4f, min_ep_r: %.4f, # game: %d" \
               % (avg_reward, avg_loss, avg_q, max_ep_reward, min_ep_reward, num_game)
 
-          inject_summary(self.writer, "average reward", avg_reward, self.step)
-          inject_summary(self.writer, "average loss", avg_loss, self.step)
-          inject_summary(self.writer, "average q", avg_q, self.step)
-          inject_summary(self.writer, "max episode reward", max_ep_reward, self.step)
-          inject_summary(self.writer, "min episode reward", min_ep_reward, self.step)
-          inject_summary(self.writer, "# of game", num_game, self.step)
+          inject_summary(self.writer, "average/reward", avg_reward, self.step)
+          inject_summary(self.writer, "average/loss", avg_loss, self.step)
+          inject_summary(self.writer, "average/q", avg_q, self.step)
+          inject_summary(self.writer, "episode/max reward", max_ep_reward, self.step)
+          inject_summary(self.writer, "episode/min reward", min_ep_reward, self.step)
+          inject_summary(self.writer, "episode/# of game", num_game, self.step)
 
           num_game = 0
           total_reward = 0.
