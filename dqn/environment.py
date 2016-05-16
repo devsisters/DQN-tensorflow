@@ -101,7 +101,7 @@ class SimpleGymEnvironment(object):
     return self.env.action_space.n
 
   def act(self, action, is_training=True):
-    self.env._step(action)
+    self._step(action)
     return self.screen, self.reward, self.terminal
 
   def _step(self, action):

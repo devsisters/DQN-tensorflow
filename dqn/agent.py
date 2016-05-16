@@ -47,6 +47,15 @@ class Agent(BaseModel):
     for self.step in tqdm(range(start_step, self.max_step), ncols=100, initial=start_step):
       action = self.perceive(screen, reward, action, terminal)
 
+      if self.step == self.learn_start:
+        num_game = 0
+        total_reward = 0.
+        self.total_loss = 0.
+        self.total_q = 0.
+        self.update_count = 0
+        ep_reward = 0.
+        ep_rewards = []
+
       if terminal:
         screen, reward, terminal = self.env.new_random_game()
         num_game += 1
@@ -60,7 +69,7 @@ class Agent(BaseModel):
       if self.display: self.env.env.render()
       total_reward += reward
 
-      if self.step > self.learn_start:
+      if self.step >= self.learn_start:
         if self.step % self.test_step == self.test_step - 1:
           avg_reward = total_reward / self.test_step
           avg_loss = self.total_loss / self.update_count
