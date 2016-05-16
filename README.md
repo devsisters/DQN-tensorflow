@@ -30,11 +30,11 @@ First, install prerequisites with:
 
 To train a model for Breakout:
 
-    $ python main.py --env_name=Breakout-v0 --train=True
+    $ python main.py --env_name=Breakout-v0 --is_train=True
 
 To test a trained model for Breakout:
 
-    $ python main.py --env_name=Breakout-v0 --test=True
+    $ python main.py --env_name=Breakout-v0 --is_train=True --display=True
 
 
 ## Results
