@@ -59,7 +59,7 @@ class BaseModel(object):
     model_dir = self.config.env_name
     for k, v in self._attrs.items():
       if not k.startswith('_'):
-        model_dir += "/%s:%s" % (k, ",".join([str(i) for i in v])
+        model_dir += "/%s-%s" % (k, ",".join([str(i) for i in v])
             if type(v) == list else v)
     return model_dir
 

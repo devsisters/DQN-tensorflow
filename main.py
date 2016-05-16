@@ -7,7 +7,7 @@ from config import get_config
 flags = tf.app.flags
 flags.DEFINE_string('model', 'nature', 'Type of model')
 flags.DEFINE_string('env_name', 'Breakout-v0', 'The name of gym environment to use')
-flags.DEFINE_string('gpu_fraction', '', 'idx / # of gpu fraction')
+flags.DEFINE_string('gpu_fraction', '1/1', 'idx / # of gpu fraction')
 flags.DEFINE_boolean('is_train', True, 'Whether to do training or testing')
 FLAGS = flags.FLAGS
 
