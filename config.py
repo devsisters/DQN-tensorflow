@@ -71,6 +71,12 @@ def get_config(FLAGS):
     config = M1
 
   for k, v in FLAGS.__dict__['__flags'].items():
+    if k == 'gpu':
+      if v == False:
+        config.cnn_format = 'NHWC'
+      else:
+        config.cnn_format = 'NCHW'
+
     if hasattr(config, k):
       setattr(config, k, v)
 

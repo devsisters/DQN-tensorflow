@@ -45,6 +45,7 @@ class Agent(BaseModel):
     screen, reward, terminal = self.env.new_random_game()
 
     for self.step in tqdm(range(start_step, self.max_step), ncols=100, initial=start_step):
+      assert (self.history.get()[0]-self.history.get()[1]).sum() != 0.0
       action = self.perceive(screen, reward, action, terminal)
 
       if self.step == self.learn_start:
@@ -175,8 +176,14 @@ class Agent(BaseModel):
     else:
       s_t, action, reward, s_t_plus_1, terminal = self.memory.sample()
 
+    assert (s_t[0] - s_t[1]).mean() != 0.0
+    assert len(np.unique(action)) != 1
+
     t = time.time()
     q_t_plus_1 = self.target_q.eval({self.target_s_t: s_t_plus_1})
+
+    assert q_t_plus_1.max() != 0.0
+    assert q_t_plus_1[:,0].mean() != q_t_plus_1[0][0]
 
     terminal = np.array(terminal) + 0.
     max_q_t_plus_1 = np.max(q_t_plus_1, axis=1)
