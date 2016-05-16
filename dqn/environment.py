@@ -3,7 +3,10 @@ import gym
 import random
 
 class GymEnvironment(object):
-  def __init__(self, env_name, screen_width, screen_height, action_repeat, random_start):
+  def __init__(self, env_name, config):
+    screen_width, screen_height, action_repeat, random_start = \
+        config.screen_width, config.screen_height, config.action_repeat, config.random_start
+
     self.env = gym.make(env_name)
 
     # raw screen without normalization
@@ -70,17 +73,17 @@ class GymEnvironment(object):
 
 class SimpleGymEnvironment(object):
   # For use with Open AI Gym Environment
-  def __init__(self, env_id, args):
+  def __init__(self, env_id, config):
     self.env = gym.make(env_id)
 
     self._screen = None
     self.rewrad = 0
     self.terminal = None
 
-    self.action_repeat = action_repeat
-    self.random_start = random_start
+    self.action_repeat = config.action_repeat
+    self.random_start = config.random_start
 
-    self.dims = (args.screen_width, args.screen_height)
+    self.dims = (config.screen_width, config.screen_height)
 
   def new_game(self):
     self._screen = self.env.reset()
@@ -99,7 +102,7 @@ class SimpleGymEnvironment(object):
 
   def act(self, action, is_training=True):
     self.env._step(action)
-    return self.screen, self.reward, terminal
+    return self.screen, self.reward, self.terminal
 
   def _step(self, action):
     self._screen, self.reward, self.terminal, _ = self.env.step(action)

@@ -49,7 +49,6 @@ class Agent(BaseModel):
 
       if terminal:
         screen, reward, terminal = self.env.new_random_game()
-
         num_game += 1
 
         ep_rewards.append(ep_reward)

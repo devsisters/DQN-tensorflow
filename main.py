@@ -39,11 +39,7 @@ def main(_):
     if config.env_type == 'simple':
       env = SimpleGymEnvironment(config.env_name, config)
     else:
-      env = GymEnvironment(env_name=config.env_name,
-                          screen_width=config.screen_width,
-                          screen_height=config.screen_height,
-                          action_repeat=config.action_repeat,
-                          random_start=config.random_start)
+      env = GymEnvironment(config.env_name, config)
     agent = Agent(config, env, sess)
 
     if FLAGS.is_train:

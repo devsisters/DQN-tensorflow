@@ -12,11 +12,11 @@ class ReplayMemory:
     self.model_dir = model_dir
 
     self.cnn_format = config.cnn_format
-    self.size = config.memory_size
-    self.actions = np.empty(self.size, dtype = np.uint8)
-    self.rewards = np.empty(self.size, dtype = np.integer)
-    self.screens = np.empty((self.size, config.screen_height, config.screen_width), dtype = np.float16)
-    self.terminals = np.empty(self.size, dtype = np.bool)
+    self.memory_size = config.memory_size
+    self.actions = np.empty(self.memory_size, dtype = np.uint8)
+    self.rewards = np.empty(self.memory_size, dtype = np.integer)
+    self.screens = np.empty((self.memory_size, config.screen_height, config.screen_width), dtype = np.float16)
+    self.terminals = np.empty(self.memory_size, dtype = np.bool)
     self.history_length = config.history_length
     self.dims = (config.screen_height, config.screen_width)
     self.batch_size = config.batch_size
@@ -47,7 +47,7 @@ class ReplayMemory:
     self.screens[self.current, ...] = screen
     self.terminals[self.current] = terminal
     self.count = max(self.count, self.current + 1)
-    self.current = (self.current + 1) % self.size
+    self.current = (self.current + 1) % self.memory_size
 
   def getState(self, index):
     assert self.count > 0, "replay memory is empy, use at least --random_steps 1"
