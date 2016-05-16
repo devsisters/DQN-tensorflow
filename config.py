@@ -1,12 +1,14 @@
 class AgentConfig(object):
-  max_step = 50000000
+  scale = 10000
+
+  max_step = 5000 * scale
   memory_size = 1000000
 
   batch_size = 32
   random_start = 30
   cnn_format = 'NCHW'
   discount = 0.99
-  target_q_update_step = 10000
+  target_q_update_step = 1 * scale
   learning_rate = 0.00025
 
   ep_end = 0.1
@@ -15,12 +17,12 @@ class AgentConfig(object):
 
   history_length = 4
   train_frequency = 4
-  learn_start = 50000.
+  learn_start = 5. * scale
 
   min_delta = -1
   max_delta = 1
 
-  _test_step = 10000
+  _test_step = 1 * scale
   _save_step = _test_step * 5
 
 class EnvironmentConfig(object):

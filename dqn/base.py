@@ -15,7 +15,6 @@ class BaseModel(object):
   def __init__(self, config):
     self._saver = None
     self.config = config
-    self.checkpoint_dir = "checkpoints"
 
     try:
       self._attrs = config.__dict__['__flags']
@@ -33,20 +32,17 @@ class BaseModel(object):
     print(" [*] Saving checkpoints...")
     model_name = type(self).__name__
 
-    checkpoint_dir = os.path.join(self.checkpoint_dir, self.model_dir)
-    if not os.path.exists(checkpoint_dir):
-      os.makedirs(checkpoint_dir)
-    self.saver.save(self.sess, 
-        os.path.join(checkpoint_dir, model_name), global_step=step)
+    if not os.path.exists(self.checkpoint_dir):
+      os.makedirs(self.checkpoint_dir)
+    self.saver.save(self.sess, self.checkpoint_dir, global_step=step)
 
   def load_model(self):
     print(" [*] Loading checkpoints...")
-    checkpoint_dir = os.path.join(self.checkpoint_dir, self.model_dir)
 
-    ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
+    ckpt = tf.train.get_checkpoint_state(self.checkpoint_dir)
     if ckpt and ckpt.model_checkpoint_path:
       ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
-      fname = os.path.join(checkpoint_dir, ckpt_name)
+      fname = os.path.join(self.checkpoint_dir, ckpt_name)
       self.saver.restore(self.sess, fname)
       print(" [*] Load SUCCESS: %s" % fname)
       return True
@@ -55,13 +51,17 @@ class BaseModel(object):
       return False
 
   @property
+  def checkpoint_dir(self):
+    return os.path.join('checkpoints', self.model_dir)
+
+  @property
   def model_dir(self):
     model_dir = self.config.env_name
     for k, v in self._attrs.items():
       if not k.startswith('_'):
         model_dir += "/%s-%s" % (k, ",".join([str(i) for i in v])
             if type(v) == list else v)
-    return model_dir
+    return model_dir + '/'
 
   @property
   def saver(self):

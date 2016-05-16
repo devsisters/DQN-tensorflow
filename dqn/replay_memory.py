@@ -1,12 +1,16 @@
 """Code from https://github.com/tambetm/simple_dqn/blob/master/src/replay_memory.py"""
 
-import numpy as np
+import os
 import random
 import logging
-logger = logging.getLogger(__name__)
+import numpy as np
+
+from utils import save_npy, load_npy
 
 class ReplayMemory:
-  def __init__(self, config):
+  def __init__(self, config, model_dir):
+    self.model_dir = model_dir
+
     self.size = config.memory_size
     self.actions = np.empty(self.size, dtype = np.uint8)
     self.rewards = np.empty(self.size, dtype = np.integer)
@@ -22,7 +26,17 @@ class ReplayMemory:
     self.prestates = np.empty((self.batch_size, self.history_length) + self.dims, dtype = np.uint8)
     self.poststates = np.empty((self.batch_size, self.history_length) + self.dims, dtype = np.uint8)
 
-    logger.info("Replay memory size: %d" % self.size)
+  def save(self):
+    for idx, (name, array) in enumerate(
+        zip(['actions', 'rewards', 'screens', 'terminals', 'prestates', 'poststates'],
+            [self.actions, self.rewards, self.screens, self.terminals, self.prestates, self.poststates])):
+      save_npy(array, os.path.join(self.model_dir, name))
+
+  def load(self):
+    for idx, (name, array) in enumerate(
+        zip(['actions', 'rewards', 'screens', 'terminals', 'prestates', 'poststates'],
+            [self.actions, self.rewards, self.screens, self.terminals, self.prestates, self.poststates])):
+      array = load_npy(os.path.join(self.model_dir, name))
 
   def add(self, screen, reward, action, terminal):
     assert screen.shape == self.dims
@@ -33,7 +47,6 @@ class ReplayMemory:
     self.terminals[self.current] = terminal
     self.count = max(self.count, self.current + 1)
     self.current = (self.current + 1) % self.size
-    #logger.debug("Memory count %d" % self.count)
 
   def getState(self, index):
     assert self.count > 0, "replay memory is empy, use at least --random_steps 1"
