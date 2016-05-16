@@ -30,13 +30,6 @@ class Agent(BaseModel):
     self.build_dqn()
 
   def train(self):
-    tf.initialize_all_variables().run()
-
-    self._saver = tf.train.Saver(self.w.values() + [self.step_op], max_to_keep=10)
-
-    self.load_model()
-    self.update_target_q_network()
-
     start_step = self.step_op.eval()
     start_time = time.time()
 
@@ -48,13 +41,14 @@ class Agent(BaseModel):
     ep_reward = 0.
     ep_rewards = []
 
-    screen, reward, action, terminal = self.env.new_random_game()
+    action = 0
+    screen, reward, terminal = self.env.new_random_game()
 
     for self.step in tqdm(range(start_step, self.max_step), ncols=100, initial=start_step):
       action = self.perceive(screen, reward, action, terminal)
 
       if terminal:
-        screen, reward, action, terminal = self.env.new_random_game()
+        screen, reward, terminal = self.env.new_random_game()
 
         num_game += 1
 
@@ -64,6 +58,7 @@ class Agent(BaseModel):
         screen, reward, terminal = self.env.act(action, is_training=True)
         ep_reward += reward
 
+      if self.display: self.env.env.render()
       total_reward += reward
 
       if self.step > self.learn_start:
@@ -106,32 +101,34 @@ class Agent(BaseModel):
           self.step_assign_op.eval({self.step_input: self.step + 1})
           self.save_model(self.step + 1)
 
-  def play(self, n_step=1000, n_episode=20, test_ep=0.01, render=False):
+  def play(self, n_step=1000, n_episode=3, test_ep=0.01, render=False):
     test_history = History(self.config)
 
-    self.env.monitor.start('/tmp/%s-%s' % (self.env_name, get_time()))
+    if not self.display:
+      self.env.env.monitor.start('/tmp/%s-%s' % (self.env_name, get_time()))
+
     for i_episode in xrange(n_episode):
-      screen = self.env.new_game()
+      screen, reward, terminal = self.env.new_game()
 
       for _ in xrange(self.history_length):
         test_history.add(screen)
 
-      for t in xrange(n_step):
-        if render: self.env.render()
+      for t in tqdm(range(n_step)):
+        if self.display: self.env.env.render()
 
         if random.random() < test_ep:
           action = random.randint(0, self.env.action_size - 1)
         else:
           action = self.q_action.eval({self.s_t: [self.history.get()]})
 
-        screen, reward, done, _ = self.env.act(action, is_training=False)
+        screen, reward, terminal = self.env.act(action, is_training=False)
         test_history.add(screen)
 
-        if done:
-          print 'Episode finished after {} timesteps'.format(t+1)
+        if terminal:
           break
 
-    self.env.monitor.close()
+    if not self.display:
+      self.env.env.monitor.close()
 
   def perceive(self, screen, reward, action, terminal, test_ep=None):
     # reward clipping
@@ -282,6 +279,13 @@ class Agent(BaseModel):
         self.summary_ops[tag]  = tf.histogram_summary(tag, self.summary_placeholders[tag])
 
       self.writer = tf.train.SummaryWriter('./logs/%s' % self.model_dir, self.sess.graph)
+
+    tf.initialize_all_variables().run()
+
+    self._saver = tf.train.Saver(self.w.values() + [self.step_op], max_to_keep=10)
+
+    self.load_model()
+    self.update_target_q_network()
 
   def update_target_q_network(self):
     for name in self.w.keys():

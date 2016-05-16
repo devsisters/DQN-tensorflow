@@ -11,6 +11,7 @@ class ReplayMemory:
   def __init__(self, config, model_dir):
     self.model_dir = model_dir
 
+    self.cnn_format = config.cnn_format
     self.size = config.memory_size
     self.actions = np.empty(self.size, dtype = np.uint8)
     self.rewards = np.empty(self.size, dtype = np.integer)
@@ -90,4 +91,9 @@ class ReplayMemory:
     actions = self.actions[indexes]
     rewards = self.rewards[indexes]
     terminals = self.terminals[indexes]
-    return self.prestates, actions, rewards, self.poststates, terminals
+
+    if self.cnn_format == 'NHWC':
+      return np.transpose(self.prestates, (0, 2, 3, 1)), actions, \
+        rewards, np.transpose(self.poststates, (0, 2, 3, 1)), terminals
+    else:
+      return self.prestates, actions, rewards, self.poststates, terminals

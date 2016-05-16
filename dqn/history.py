@@ -2,6 +2,8 @@ import numpy as np
 
 class History:
   def __init__(self, config):
+    self.cnn_format = config.cnn_format
+
     batch_size, history_length, screen_height, screen_width = \
         config.batch_size, config.history_length, config.screen_height, config.screen_width
 
@@ -16,4 +18,7 @@ class History:
     self.history *= 0
 
   def get(self):
-    return self.history
+    if self.cnn_format == 'NHWC':
+      return np.transpose(self.history, (1, 2, 0))
+    else:
+      return self.history
