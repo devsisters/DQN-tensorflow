@@ -14,7 +14,7 @@ class ReplayMemory:
     self.size = config.memory_size
     self.actions = np.empty(self.size, dtype = np.uint8)
     self.rewards = np.empty(self.size, dtype = np.integer)
-    self.screens = np.empty((self.size, config.screen_height, config.screen_width), dtype = np.uint8)
+    self.screens = np.empty((self.size, config.screen_height, config.screen_width), dtype = np.float16)
     self.terminals = np.empty(self.size, dtype = np.bool)
     self.history_length = config.history_length
     self.dims = (config.screen_height, config.screen_width)
@@ -23,8 +23,8 @@ class ReplayMemory:
     self.current = 0
 
     # pre-allocate prestates and poststates for minibatch
-    self.prestates = np.empty((self.batch_size, self.history_length) + self.dims, dtype = np.uint8)
-    self.poststates = np.empty((self.batch_size, self.history_length) + self.dims, dtype = np.uint8)
+    self.prestates = np.empty((self.batch_size, self.history_length) + self.dims, dtype = np.float16)
+    self.poststates = np.empty((self.batch_size, self.history_length) + self.dims, dtype = np.float16)
 
   def save(self):
     for idx, (name, array) in enumerate(
