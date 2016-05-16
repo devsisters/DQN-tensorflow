@@ -177,14 +177,14 @@ class Agent(BaseModel):
     max_q_t_plus_1 = np.max(q_t_plus_1, axis=1)
     target_q_t = (1. - terminal) * self.discount * max_q_t_plus_1 + reward
 
-    _, loss = self.sess.run([self.optim, self.loss], {
+    _, q_t, loss = self.sess.run([self.optim, self.q, self.loss], {
       self.target_q_t: target_q_t,
       self.action: action,
       self.s_t: s_t,
     })
 
     self.total_loss += loss
-    self.total_q += q_t_plus_1.mean()
+    self.total_q += q_t.mean()
     self.update_count += 1
 
   def build_dqn(self):
