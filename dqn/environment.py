@@ -99,7 +99,7 @@ class SimpleGymEnvironment(object):
 
   def getScreen(self):
     assert self.obs is not None
-    return cv2.resize(cv2.cvtColor(self.obs, cv2.COLOR_RGB2GRAY), self.dims)
+    return cv2.resize(cv2.cvtColor(self.obs, cv2.COLOR_RGB2GRAY)/255., self.dims)
 
   def isTerminal(self):
     assert self.terminal is not None
