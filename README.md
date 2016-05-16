@@ -46,8 +46,8 @@ To test a trained model for Breakout:
 
 ## References
 
-- [simple_dqn](https://github.com/tambetm/simple_dqn.git)
 - [async_rl](https://github.com/muupan/async-rl)
+- [simple_dqn](https://github.com/tambetm/simple_dqn.git)
 - [Code for Human-level control through deep reinforcement learning](https://sites.google.com/a/deepmind.com/dqn/)
 
 

@@ -22,9 +22,10 @@ class Agent(BaseModel):
     #self.memory = Memory(self.config)
     self.memory = ReplayMemory(self.config, self.model_dir)
 
-    self.step_op = tf.Variable(0, trainable=False)
-    self.step_input = tf.placeholder('int32', None)
-    self.step_assign_op = self.step_op.assign(self.step_input)
+    with tf.variable_scope('step'):
+      self.step_op = tf.Variable(0, trainable=False, name='step')
+      self.step_input = tf.placeholder('int32', None, name='step_input')
+      self.step_assign_op = self.step_op.assign(self.step_input)
 
     self.build_dqn()
 
@@ -241,11 +242,13 @@ class Agent(BaseModel):
       self.target_q, self.t_w['q_w'], self.t_w['q_b'] = \
           linear(self.target_l4, self.env.action_size, name='target_q')
 
-    self.t_w_input = {}
-    self.t_w_assign_op = {}
-    for name in self.w.keys():
-      self.t_w_input[name] = tf.placeholder('float32', self.t_w[name].get_shape().as_list())
-      self.t_w_assign_op[name] = self.t_w[name].assign(self.t_w_input[name])
+    with tf.variable_scope('pred_to_target'):
+      self.t_w_input = {}
+      self.t_w_assign_op = {}
+
+      for name in self.w.keys():
+        self.t_w_input[name] = tf.placeholder('float32', self.t_w[name].get_shape().as_list(), name=name)
+        self.t_w_assign_op[name] = self.t_w[name].assign(self.t_w_input[name])
 
     # optimizer
     with tf.variable_scope('optimizer'):
