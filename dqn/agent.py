@@ -43,16 +43,17 @@ class Agent(BaseModel):
 
     action = 0
     warning_count = 0
-    screen, reward, terminal = self.env.new_random_game()
+    screen, reward, terminal = self.env.new_game()
 
-    for self.step in tqdm(range(start_step, self.max_step), ncols=100, initial=start_step):
+    for self.step in tqdm(range(start_step, self.max_step), ncols=70, initial=start_step):
       self.history.add(screen)
-      action = self.perceive(screen, reward, action, terminal)
 
       #if self.cnn_format == 'NCHW' and (self.history.get()[-1]-self.history.get()[-2]).sum() == 0.0 \
       #    or self.cnn_format == 'NHWC' and (self.history.get()[:,:,-1]-self.history.get().mean(2)).sum() == 0.0:
       #  warning_count += 1
-      #  print warning_count
+
+      #  if warning_count > 30:
+      #    import ipdb; ipdb.set_trace() 
       #else:
       #  warning_count = 0
 
@@ -66,12 +67,13 @@ class Agent(BaseModel):
         ep_rewards = []
 
       if terminal:
-        screen, reward, terminal = self.env.new_random_game()
+        screen, reward, terminal = self.env.new_game()
         num_game += 1
 
         ep_rewards.append(ep_reward)
         ep_reward = 0.
       else:
+        action = self.perceive(screen, reward, action, terminal)
         screen, reward, terminal = self.env.act(action, is_training=True)
         ep_reward += reward
 
@@ -126,14 +128,14 @@ class Agent(BaseModel):
     for i_episode in xrange(n_episode):
       screen, reward, terminal = self.env.new_game()
 
-      for _ in xrange(self.history_length):
+      for _ in tqdm(range(self.history_length), ncols=70, initial=start_step):
         test_history.add(screen)
 
       for t in tqdm(range(n_step)):
         if random.random() < test_ep:
           action = random.randint(0, self.env.action_size - 1)
         else:
-          action = self.q_action.eval({self.s_t: [self.history.get()]})
+          action = self.q_action.eval({self.s_t: [self.history.get()]})[0]
 
         screen, reward, terminal = self.env.act(action, is_training=False)
         test_history.add(screen)
@@ -159,7 +161,7 @@ class Agent(BaseModel):
     if random.random() < ep:
       action = random.randint(0, self.env.action_size - 1)
     else:
-      action = self.q_action.eval({self.s_t: [self.history.get()]})
+      action = self.q_action.eval({self.s_t: [self.history.get()]})[0]
 
     if self.step > self.learn_start:
       if test_ep == None and self.step % self.train_frequency == 0:
