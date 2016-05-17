@@ -38,9 +38,10 @@ def main(_):
     config = get_config(FLAGS) or FLAGS
 
     if config.env_type == 'simple':
-      env = SimpleGymEnvironment(config.env_name, config)
+      env = SimpleGymEnvironment(config)
     else:
-      env = GymEnvironment(config.env_name, config)
+      env = GymEnvironment(config)
+
     agent = Agent(config, env, sess)
 
     if FLAGS.is_train:

@@ -42,11 +42,19 @@ class Agent(BaseModel):
     ep_rewards = []
 
     action = 0
+    warning_count = 0
     screen, reward, terminal = self.env.new_random_game()
 
     for self.step in tqdm(range(start_step, self.max_step), ncols=100, initial=start_step):
-      assert (self.history.get()[0]-self.history.get()[1]).sum() != 0.0
+      self.history.add(screen)
       action = self.perceive(screen, reward, action, terminal)
+
+      #if self.cnn_format == 'NCHW' and (self.history.get()[-1]-self.history.get()[-2]).sum() == 0.0 \
+      #    or self.cnn_format == 'NHWC' and (self.history.get()[:,:,-1]-self.history.get().mean(2)).sum() == 0.0:
+      #  warning_count += 1
+      #  print warning_count
+      #else:
+      #  warning_count = 0
 
       if self.step == self.learn_start:
         num_game = 0
@@ -67,7 +75,6 @@ class Agent(BaseModel):
         screen, reward, terminal = self.env.act(action, is_training=True)
         ep_reward += reward
 
-      if self.display: self.env.env.render()
       total_reward += reward
 
       if self.step >= self.learn_start:
@@ -123,8 +130,6 @@ class Agent(BaseModel):
         test_history.add(screen)
 
       for t in tqdm(range(n_step)):
-        if self.display: self.env.env.render()
-
         if random.random() < test_ep:
           action = random.randint(0, self.env.action_size - 1)
         else:
@@ -142,11 +147,6 @@ class Agent(BaseModel):
   def perceive(self, screen, reward, action, terminal, test_ep=None):
     # reward clipping
     reward = max(self.min_reward, min(self.max_reward, reward))
-
-    # add memory
-    # s_t = self.history.get().copy()
-    # self.history.add(screen)
-    # s_t_plus_1 = self.history.get().copy()
 
     if test_ep == None:
       self.memory.add(screen, reward, action, terminal)
@@ -176,14 +176,20 @@ class Agent(BaseModel):
     else:
       s_t, action, reward, s_t_plus_1, terminal = self.memory.sample()
 
-    assert (s_t[0] - s_t[1]).mean() != 0.0
-    assert len(np.unique(action)) != 1
+    #try:
+    #  assert (s_t[0] - s_t[1]).mean() != 0.0
+    #  assert len(np.unique(action)) != 1
+    #except:
+    #  import ipdb; ipdb.set_trace() 
 
     t = time.time()
     q_t_plus_1 = self.target_q.eval({self.target_s_t: s_t_plus_1})
 
-    assert q_t_plus_1.max() != 0.0
-    assert q_t_plus_1[:,0].mean() != q_t_plus_1[0][0]
+    #try:
+    #  assert q_t_plus_1.max() != 0.0
+    #  assert q_t_plus_1[:,0].mean() != q_t_plus_1[0][0]
+    #except:
+    #  import ipdb; ipdb.set_trace() 
 
     terminal = np.array(terminal) + 0.
     max_q_t_plus_1 = np.max(q_t_plus_1, axis=1)
