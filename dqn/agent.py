@@ -63,6 +63,7 @@ class Agent(BaseModel):
         ep_reward = 0.
         ep_rewards = []
 
+      action = self.perceive(screen, reward, action, terminal)
       if terminal:
         screen, reward, terminal = self.env.new_game()
         num_game += 1
@@ -70,7 +71,6 @@ class Agent(BaseModel):
         ep_rewards.append(ep_reward)
         ep_reward = 0.
       else:
-        action = self.perceive(screen, reward, action, terminal)
         screen, reward, terminal = self.env.act(action, is_training=True)
         ep_reward += reward
 
