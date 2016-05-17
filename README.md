@@ -36,6 +36,11 @@ To test a trained model for Breakout:
 
     $ python main.py --env_name=Breakout-v0 --is_train=True --display=True
 
+Trained in GPU but test in CPU with GPU weights:
+
+    $ python main.py --model=m2 --save=True # save pickle from checkpoints
+    $ python main.py --model=m2 --load=True --cpu=True --display=True --is_train=False
+
 
 ## Results
 

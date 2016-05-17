@@ -125,14 +125,14 @@ class Agent(BaseModel):
     for i_episode in xrange(n_episode):
       screen, reward, terminal = self.env.new_game()
 
-      for _ in tqdm(range(self.history_length), ncols=70, initial=start_step):
+      for _ in range(self.history_length):
         test_history.add(screen)
 
-      for t in tqdm(range(n_step)):
+      for t in tqdm(range(n_step), ncols=70):
         if random.random() < test_ep:
           action = random.randint(0, self.env.action_size - 1)
         else:
-          action = self.q_action.eval({self.s_t: [self.history.get()]})[0]
+          action = self.q_action.eval({self.s_t: [test_history.get()]})[0]
 
         screen, reward, terminal = self.env.act(action, is_training=False)
         test_history.add(screen)
