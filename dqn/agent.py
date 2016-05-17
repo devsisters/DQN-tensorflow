@@ -7,9 +7,8 @@ import tensorflow as tf
 from .base import BaseModel
 from .history import History
 from .ops import linear, conv2d
-#from .memory import Memory
 from .replay_memory import ReplayMemory
-from utils import get_time
+from utils import get_time, save_pkl, load_pkl
 
 class Agent(BaseModel):
   def __init__(self, config, environment, sess):
@@ -311,6 +310,24 @@ class Agent(BaseModel):
   def update_target_q_network(self):
     for name in self.w.keys():
       self.t_w_assign_op[name].eval({self.t_w_input[name]: self.w[name].eval()})
+
+  def save_weight_to_pkl(self):
+    for name in self.w.keys():
+      save_pkl(self.w[name].eval(), "%s.pkl" % name)
+
+  def load_weight_from_pkl(self, cpu_mode=False):
+    with tf.variable_scope('load_pred_from_pkl'):
+      self.w_input = {}
+      self.w_assign_op = {}
+
+      for name in self.w.keys():
+        self.w_input[name] = tf.placeholder('float32', self.w[name].get_shape().as_list(), name=name)
+        self.w_assign_op[name] = self.w[name].assign(self.w_input[name])
+
+    for name in self.w.keys():
+      self.w_assign_op[name].eval({self.w_input[name]: load_pkl("%s.pkl" % name)})
+
+    self.update_target_q_network()
 
   def inject_summary(self, tag_dict, step):
     summary_str_lists = self.sess.run([self.summary_ops[tag] for tag in tag_dict.keys()], {
