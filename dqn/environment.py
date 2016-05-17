@@ -2,6 +2,7 @@ import cv2
 import gym
 import time
 import random
+import numpy as np
 
 class Environment(object):
   def __init__(self, config):
@@ -17,19 +18,20 @@ class Environment(object):
     self.rewrad = 0
     self.terminal = True
 
+    #self.warning_count = 0
+    #self._prev_screen_sum = 0
+
   def new_game(self, from_random_game=False):
     self._screen = self.env.reset()
-    self._step(0)
- 
-    if not from_random_game: self.render()
+    #self.warning_count = 0
+    self.act(0)
     return self.screen, 0, self.terminal
 
   def new_random_game(self):
+    # USELESS. smae as new_game
     self.new_game(True)
     for _ in xrange(random.randint(0, self.random_start)):
       self.act(0)
-
-    self.render()
     return self.screen, 0, self.terminal
 
   def _step(self, action):
@@ -37,11 +39,10 @@ class Environment(object):
 
   def _random_step(self):
     action = self.env.action_space.sample()
-    self._screen, self.reward, self.terminal, _ = self.env.step(action)
+    self._step(action)
 
   @ property
   def screen(self):
-    assert self._screen is not None
     return cv2.resize(cv2.cvtColor(self._screen, cv2.COLOR_RGB2GRAY)/255., self.dims)
     #return cv2.resize(cv2.cvtColor(self._screen, cv2.COLOR_BGR2YCR_CB)/255., self.dims)[:,:,0]
 
@@ -61,6 +62,20 @@ class Environment(object):
     if self.display:
       self.env.render()
       #time.sleep(0.05)
+
+  def after_act(self, action):
+    self.render()
+    #print action
+    #_screen_sum = self._screen.copy()
+    #if np.array_equal(self._prev_screen_sum, _screen_sum):
+    #  self.warning_count += 1
+
+    #  if self.warning_count > 20:
+    #    self.warning_count = 0
+    #    self.new_game()
+    #else:
+    #  self.warning_count = 0
+    #self._prev_screen_sum = _screen_sum
 
 class GymEnvironment(Environment):
   def __init__(self, config):
@@ -82,8 +97,7 @@ class GymEnvironment(Environment):
         break
 
     self.reward = cumulated_reward
-
-    self.render()
+    self.after_act(action)
     return self.state
 
 class SimpleGymEnvironment(Environment):
@@ -92,6 +106,5 @@ class SimpleGymEnvironment(Environment):
 
   def act(self, action, is_training=True):
     self._step(action)
-
-    self.render()
+    self.after_act(action)
     return self.state
