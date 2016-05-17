@@ -1,35 +1,72 @@
 import cv2
 import gym
+import time
 import random
 
-class GymEnvironment(object):
-  def __init__(self, env_name, config):
-    screen_width, screen_height, action_repeat, random_start = \
+class Environment(object):
+  def __init__(self, config):
+    self.env = gym.make(config.env_name)
+
+    screen_width, screen_height, self.action_repeat, self.random_start = \
         config.screen_width, config.screen_height, config.action_repeat, config.random_start
 
-    self.env = gym.make(env_name)
+    self.display = config.display
+    self.dims = (screen_width, screen_height)
 
-    # raw screen without normalization
     self._screen = None
     self.rewrad = 0
     self.terminal = True
 
-    self.action_repeat = action_repeat
-    self.random_start = random_start
-    self.dims = (screen_width, screen_height)
-
-  def new_game(self):
+  def new_game(self, from_random_game=False):
     self._screen = self.env.reset()
     self._step(0)
+ 
+    if not from_random_game: self.render()
     return self.screen, 0, self.terminal
 
   def new_random_game(self):
-    self.new_game()
+    self.new_game(True)
     for _ in xrange(random.randint(0, self.random_start)):
-      self._step(0)
+      self.act(0)
+
+    self.render()
     return self.screen, 0, self.terminal
 
-  def act(self, action, is_training):
+  def _step(self, action):
+    self._screen, self.reward, self.terminal, _ = self.env.step(action)
+
+  def _random_step(self):
+    action = self.env.action_space.sample()
+    self._screen, self.reward, self.terminal, _ = self.env.step(action)
+
+  @ property
+  def screen(self):
+    assert self._screen is not None
+    return cv2.resize(cv2.cvtColor(self._screen, cv2.COLOR_RGB2GRAY)/255., self.dims)
+    #return cv2.resize(cv2.cvtColor(self._screen, cv2.COLOR_BGR2YCR_CB)/255., self.dims)[:,:,0]
+
+  @property
+  def action_size(self):
+    return self.env.action_space.n
+
+  @property
+  def lives(self):
+    return self.env.ale.lives()
+
+  @property
+  def state(self):
+    return self.screen, self.reward, self.terminal
+
+  def render(self):
+    if self.display:
+      self.env.render()
+      #time.sleep(0.05)
+
+class GymEnvironment(Environment):
+  def __init__(self, config):
+    super(GymEnvironment, self).__init__(config)
+
+  def act(self, action, is_training=True):
     cumulated_reward = 0
     start_lives = self.lives
 
@@ -45,77 +82,16 @@ class GymEnvironment(object):
         break
 
     self.reward = cumulated_reward
+
+    self.render()
     return self.state
 
-  def _step(self, action):
-    self._screen, self.reward, self.terminal, _ = self.env.step(action)
-
-  def _random_step(self):
-    action = self.env.action_space.sample()
-    self._screen, self.reward, self.terminal, _ = self.env.step(action)
-
-  @property
-  def state(self):
-    return self.screen, self.reward, self.terminal
-
-  @property
-  def screen(self): # normalized screen
-    return cv2.resize(cv2.cvtColor(self._screen, cv2.COLOR_RGB2GRAY)/255., self.dims)
-    #return cv2.resize(cv2.cvtColor(self._screen, cv2.COLOR_BGR2YCR_CB)/255., self.dims)[:,:,0]
-
-  @property
-  def action_size(self):
-    return self.env.action_space.n
-
-  @property
-  def lives(self):
-    return self.env.ale.lives()
-
-class SimpleGymEnvironment(object):
-  # For use with Open AI Gym Environment
-  def __init__(self, env_id, config):
-    self.env = gym.make(env_id)
-
-    self._screen = None
-    self.rewrad = 0
-    self.terminal = None
-
-    self.action_repeat = config.action_repeat
-    self.random_start = config.random_start
-
-    self.dims = (config.screen_width, config.screen_height)
-
-  def new_game(self):
-    self._screen = self.env.reset()
-    self._step(0)
-    return self.screen, 0, self.terminal
-
-  def new_random_game(self):
-    self.new_game()
-    for _ in xrange(random.randint(0, self.random_start)):
-      self.act(0)
-    return self.screen, 0, self.terminal
-
-  def numActions(self):
-    assert isinstance(self.env.action_space, gym.spaces.Discrete)
-    return self.env.action_space.n
+class SimpleGymEnvironment(Environment):
+  def __init__(self, config):
+    super(SimpleGymEnvironment, self).__init__(config)
 
   def act(self, action, is_training=True):
     self._step(action)
-    return self.screen, self.reward, self.terminal
 
-  def _step(self, action):
-    self._screen, self.reward, self.terminal, _ = self.env.step(action)
-
-  def _random_step(self):
-    action = self.env.action_space.sample()
-    self._screen, self.reward, self.terminal, _ = self.env.step(action)
-
-  @ property
-  def screen(self):
-    assert self._screen is not None
-    return cv2.resize(cv2.cvtColor(self._screen, cv2.COLOR_RGB2GRAY)/255., self.dims)
-
-  @property
-  def action_size(self):
-    return self.env.action_space.n
+    self.render()
+    return self.state

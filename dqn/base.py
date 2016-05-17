@@ -47,7 +47,7 @@ class BaseModel(object):
       print(" [*] Load SUCCESS: %s" % fname)
       return True
     else:
-      print(" [!] Load failed...")
+      print(" [!] Load FAILED: %s" % self.checkpoint_dir)
       return False
 
   @property

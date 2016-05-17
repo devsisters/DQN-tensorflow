@@ -11,6 +11,7 @@ flags.DEFINE_string('env_name', 'Breakout-v0', 'The name of gym environment to u
 flags.DEFINE_string('gpu_fraction', '1/2', 'idx / # of gpu fraction')
 flags.DEFINE_boolean('display', False, 'Whether to do display the game screen or not')
 flags.DEFINE_boolean('is_train', True, 'Whether to do training or testing')
+flags.DEFINE_boolean('gpu', True, 'Whether to use gpu or cpu')
 flags.DEFINE_integer('random_seed', 123, 'Value of random seed')
 FLAGS = flags.FLAGS
 
@@ -37,9 +38,10 @@ def main(_):
     config = get_config(FLAGS) or FLAGS
 
     if config.env_type == 'simple':
-      env = SimpleGymEnvironment(config.env_name, config)
+      env = SimpleGymEnvironment(config)
     else:
-      env = GymEnvironment(config.env_name, config)
+      env = GymEnvironment(config)
+
     agent = Agent(config, env, sess)
 
     if FLAGS.is_train:
