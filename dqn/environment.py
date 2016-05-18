@@ -19,14 +19,15 @@ class Environment(object):
 
   def new_game(self, from_random_game=False):
     self._screen = self.env.reset()
-    self.act(0)
+    self._step(0)
+    self.render()
     return self.screen, 0, self.terminal
 
   def new_random_game(self):
-    # USELESS. same as new_game
     self.new_game(True)
-    for _ in xrange(random.randint(0, self.random_start)):
-      self.act(0)
+    for _ in xrange(random.randint(0, self.random_start - 1)):
+      self._step(0)
+    self.render()
     return self.screen, 0, self.terminal
 
   def _step(self, action):

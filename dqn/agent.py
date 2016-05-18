@@ -1,3 +1,4 @@
+import os
 import time
 import random
 import numpy as np
@@ -14,6 +15,7 @@ class Agent(BaseModel):
   def __init__(self, config, environment, sess):
     super(Agent, self).__init__(config)
     self.sess = sess
+    self.weight_dir = 'weights'
 
     self.env = environment
     self.history = History(self.config)
@@ -37,10 +39,11 @@ class Agent(BaseModel):
     self.update_count = 0
     ep_reward = 0.
     ep_rewards = []
+    actions = []
 
     action = 0
     warning_count = 0
-    screen, reward, terminal = self.env.new_game()
+    screen, reward, terminal = self.env.new_random_game()
 
     for self.step in tqdm(range(start_step, self.max_step), ncols=70, initial=start_step):
       self.history.add(screen)
@@ -53,10 +56,13 @@ class Agent(BaseModel):
         self.update_count = 0
         ep_reward = 0.
         ep_rewards = []
+        actions = []
 
       action = self.perceive(screen, reward, action, terminal)
+      actions.append(action)
+
       if terminal:
-        screen, reward, terminal = self.env.new_game()
+        screen, reward, terminal = self.env.new_random_game()
         num_game += 1
 
         ep_rewards.append(ep_reward)
@@ -93,6 +99,7 @@ class Agent(BaseModel):
                 'episode/avg reward': avg_ep_reward,
                 'episode/num of game': num_game,
                 'episode/rewards': ep_rewards,
+                'episode/actions': actions,
               }, self.step)
 
           num_game = 0
@@ -102,6 +109,7 @@ class Agent(BaseModel):
           self.update_count = 0
           ep_reward = 0.
           ep_rewards = []
+          actions = []
 
         if self.step % self.save_step == self.save_step - 1:
           self.step_assign_op.eval({self.step_input: self.step + 1})
@@ -271,7 +279,7 @@ class Agent(BaseModel):
         self.summary_placeholders[tag] = tf.placeholder('float32', None, name=tag.replace(' ', '_'))
         self.summary_ops[tag]  = tf.scalar_summary(tag, self.summary_placeholders[tag])
 
-      histogram_summary_tags = ['episode/rewards']
+      histogram_summary_tags = ['episode/rewards', 'episode/actions']
 
       for tag in histogram_summary_tags:
         self.summary_placeholders[tag] = tf.placeholder('float32', None, name=tag.replace(' ', '_'))
@@ -291,8 +299,11 @@ class Agent(BaseModel):
       self.t_w_assign_op[name].eval({self.t_w_input[name]: self.w[name].eval()})
 
   def save_weight_to_pkl(self):
+    if not os.path.exists(self.weight_dir):
+      os.makedirs(self.weight_dir)
+
     for name in self.w.keys():
-      save_pkl(self.w[name].eval(), "%s.pkl" % name)
+      save_pkl(self.w[name].eval(), os.path.join(self.weight_dir, "%s.pkl" % name))
 
   def load_weight_from_pkl(self, cpu_mode=False):
     with tf.variable_scope('load_pred_from_pkl'):
@@ -304,7 +315,7 @@ class Agent(BaseModel):
         self.w_assign_op[name] = self.w[name].assign(self.w_input[name])
 
     for name in self.w.keys():
-      self.w_assign_op[name].eval({self.w_input[name]: load_pkl("%s.pkl" % name)})
+      self.w_assign_op[name].eval({self.w_input[name]: load_pkl(os.path.join(self.weight_dir, "%s.pkl" % name))})
 
     self.update_target_q_network()
 
