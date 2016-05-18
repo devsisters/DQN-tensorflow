@@ -67,6 +67,10 @@ def get_config(FLAGS):
     config = M3
   elif FLAGS.model == 'm4':
     config = M4
+  elif FLAGS.model == 'm5':
+    config = M1
+  elif FLAGS.model == 'm6':
+    config = M3
   else:
     config = M1
 
