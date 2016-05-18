@@ -36,7 +36,7 @@ class Agent(BaseModel):
     total_reward, self.total_loss, self.total_q = 0., 0., 0.
     ep_rewards, actions = [], []
 
-    screen, action, reward, terminal = self.env.new_random_game()
+    screen, reward, action, terminal = self.env.new_random_game()
 
     for _ in range(self.history_length):
       self.history.add(screen)
@@ -52,10 +52,10 @@ class Agent(BaseModel):
       # 2. act
       screen, reward, terminal = self.env.act(action, is_training=True)
       # 3. observe
-      self.observe(screen, action, reward, terminal)
+      self.observe(screen, reward, action, terminal)
 
       if terminal:
-        screen, action, reward, terminal = self.env.new_random_game()
+        screen, reward, action, terminal = self.env.new_random_game()
 
         num_game += 1
         ep_rewards.append(ep_reward)
@@ -305,14 +305,14 @@ class Agent(BaseModel):
       self.env.env.monitor.start('/tmp/%s-%s' % (self.env_name, get_time()))
 
     for i_episode in xrange(n_episode):
-      screen, action, reward, terminal = self.env.new_game()
+      screen, reward, action, terminal = self.env.new_game()
 
       for _ in range(self.history_length):
         test_history.add(screen)
 
       for t in tqdm(range(n_step), ncols=70):
         # 1. predict
-        action = self.predict(test_history.get(), 0.01)
+        action = self.predict(test_history.get(), test_ep)
         # 2. act
         screen, reward, terminal = self.env.act(action, is_training=False)
         # 3. observe
