@@ -113,7 +113,7 @@ class Agent(BaseModel):
         max(0., (self.ep_start - self.ep_end)
           * (self.ep_end_t - max(0., self.step - self.learn_start)) / self.ep_end_t))
 
-    if random.random() < ep or self.step < self.learn_start:
+    if random.random() < ep:
       action = random.randrange(self.env.action_size)
     else:
       action = self.q_action.eval({self.s_t: [s_t]})[0]
@@ -305,14 +305,14 @@ class Agent(BaseModel):
       self.env.env.monitor.start('/tmp/%s-%s' % (self.env_name, get_time()))
 
     for i_episode in xrange(n_episode):
-      screen, reward, terminal = self.env.new_game()
+      screen, action, reward, terminal = self.env.new_game()
 
       for _ in range(self.history_length):
         test_history.add(screen)
 
       for t in tqdm(range(n_step), ncols=70):
         # 1. predict
-        action = self.predict(self.history.get(), 0.01)
+        action = self.predict(test_history.get(), 0.01)
         # 2. act
         screen, reward, terminal = self.env.act(action, is_training=False)
         # 3. observe
