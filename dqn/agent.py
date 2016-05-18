@@ -45,15 +45,6 @@ class Agent(BaseModel):
     for self.step in tqdm(range(start_step, self.max_step), ncols=70, initial=start_step):
       self.history.add(screen)
 
-      #if self.cnn_format == 'NCHW' and (self.history.get()[-1]-self.history.get()[-2]).sum() == 0.0 \
-      #    or self.cnn_format == 'NHWC' and (self.history.get()[:,:,-1]-self.history.get().mean(2)).sum() == 0.0:
-      #  warning_count += 1
-
-      #  if warning_count > 30:
-      #    import ipdb; ipdb.set_trace() 
-      #else:
-      #  warning_count = 0
-
       if self.step == self.learn_start:
         num_game = 0
         total_reward = 0.
@@ -99,7 +90,7 @@ class Agent(BaseModel):
                 'average/q': avg_q,
                 'episode/max reward': max_ep_reward,
                 'episode/min reward': min_ep_reward,
-                'episode/min reward': avg_ep_reward,
+                'episode/avg reward': avg_ep_reward,
                 'episode/num of game': num_game,
                 'episode/rewards': ep_rewards,
               }, self.step)
@@ -175,20 +166,8 @@ class Agent(BaseModel):
     else:
       s_t, action, reward, s_t_plus_1, terminal = self.memory.sample()
 
-    #try:
-    #  assert (s_t[0] - s_t[1]).mean() != 0.0
-    #  assert len(np.unique(action)) != 1
-    #except:
-    #  import ipdb; ipdb.set_trace() 
-
     t = time.time()
     q_t_plus_1 = self.target_q.eval({self.target_s_t: s_t_plus_1})
-
-    #try:
-    #  assert q_t_plus_1.max() != 0.0
-    #  assert q_t_plus_1[:,0].mean() != q_t_plus_1[0][0]
-    #except:
-    #  import ipdb; ipdb.set_trace() 
 
     terminal = np.array(terminal) + 0.
     max_q_t_plus_1 = np.max(q_t_plus_1, axis=1)

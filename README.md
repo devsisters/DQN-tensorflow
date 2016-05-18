@@ -44,9 +44,22 @@ Trained in GPU but test in CPU with GPU weights:
 
 ## Results
 
-(in progress)
+Training details of Breakout trained with model `m1` (blue) and `m2` (red) for 10 hours with GTX 980 Ti.
 
-![tensorboard](assets/tensorboard.png)
+(`episode/min reward` should be `episode/average reward`. typo)
+
+![tensorboard](assets/tensorboard_160518_scalar1.png)
+
+![tensorboard](assets/tensorboard_160518_histogram1.png)
+
+Training details of Breakout trained with model `m3` (blue) and `m4` (red) for 10 hours with GTX 980 Ti.
+
+(`episode/min reward` should be `episode/average reward`. typo)
+
+![tensorboard](assets/tensorboard_160518_scalar2.png)
+
+![tensorboard](assets/tensorboard_160518_histogram2.png)
+
 
 
 ## References

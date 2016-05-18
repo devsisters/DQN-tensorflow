@@ -1,6 +1,5 @@
 import cv2
 import gym
-import time
 import random
 import numpy as np
 
@@ -18,17 +17,13 @@ class Environment(object):
     self.rewrad = 0
     self.terminal = True
 
-    #self.warning_count = 0
-    #self._prev_screen_sum = 0
-
   def new_game(self, from_random_game=False):
     self._screen = self.env.reset()
-    #self.warning_count = 0
     self.act(0)
     return self.screen, 0, self.terminal
 
   def new_random_game(self):
-    # USELESS. smae as new_game
+    # USELESS. same as new_game
     self.new_game(True)
     for _ in xrange(random.randint(0, self.random_start)):
       self.act(0)
@@ -61,21 +56,9 @@ class Environment(object):
   def render(self):
     if self.display:
       self.env.render()
-      #time.sleep(0.05)
 
   def after_act(self, action):
     self.render()
-    #print action
-    #_screen_sum = self._screen.copy()
-    #if np.array_equal(self._prev_screen_sum, _screen_sum):
-    #  self.warning_count += 1
-
-    #  if self.warning_count > 20:
-    #    self.warning_count = 0
-    #    self.new_game()
-    #else:
-    #  self.warning_count = 0
-    #self._prev_screen_sum = _screen_sum
 
 class GymEnvironment(Environment):
   def __init__(self, config):
@@ -92,11 +75,11 @@ class GymEnvironment(Environment):
       if is_training and start_lives > self.lives:
         self.terminal = True
         break
-
       if self.terminal:
         break
 
     self.reward = cumulated_reward
+
     self.after_act(action)
     return self.state
 
@@ -106,5 +89,6 @@ class SimpleGymEnvironment(Environment):
 
   def act(self, action, is_training=True):
     self._step(action)
+
     self.after_act(action)
     return self.state

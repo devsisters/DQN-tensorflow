@@ -27,18 +27,6 @@ class ReplayMemory:
     self.prestates = np.empty((self.batch_size, self.history_length) + self.dims, dtype = np.float16)
     self.poststates = np.empty((self.batch_size, self.history_length) + self.dims, dtype = np.float16)
 
-  def save(self):
-    for idx, (name, array) in enumerate(
-        zip(['actions', 'rewards', 'screens', 'terminals', 'prestates', 'poststates'],
-            [self.actions, self.rewards, self.screens, self.terminals, self.prestates, self.poststates])):
-      save_npy(array, os.path.join(self.model_dir, name))
-
-  def load(self):
-    for idx, (name, array) in enumerate(
-        zip(['actions', 'rewards', 'screens', 'terminals', 'prestates', 'poststates'],
-            [self.actions, self.rewards, self.screens, self.terminals, self.prestates, self.poststates])):
-      array = load_npy(os.path.join(self.model_dir, name))
-
   def add(self, screen, reward, action, terminal):
     assert screen.shape == self.dims
     # NB! screen is post-state, after action and reward
@@ -87,7 +75,6 @@ class ReplayMemory:
       self.poststates[len(indexes), ...] = self.getState(index)
       indexes.append(index)
 
-    # copy actions, rewards and terminals with direct slicing
     actions = self.actions[indexes]
     rewards = self.rewards[indexes]
     terminals = self.terminals[indexes]
@@ -97,3 +84,15 @@ class ReplayMemory:
         rewards, np.transpose(self.poststates, (0, 2, 3, 1)), terminals
     else:
       return self.prestates, actions, rewards, self.poststates, terminals
+
+  def save(self):
+    for idx, (name, array) in enumerate(
+        zip(['actions', 'rewards', 'screens', 'terminals', 'prestates', 'poststates'],
+            [self.actions, self.rewards, self.screens, self.terminals, self.prestates, self.poststates])):
+      save_npy(array, os.path.join(self.model_dir, name))
+
+  def load(self):
+    for idx, (name, array) in enumerate(
+        zip(['actions', 'rewards', 'screens', 'terminals', 'prestates', 'poststates'],
+            [self.actions, self.rewards, self.screens, self.terminals, self.prestates, self.poststates])):
+      array = load_npy(os.path.join(self.model_dir, name))
