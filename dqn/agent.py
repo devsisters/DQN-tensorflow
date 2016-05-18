@@ -32,45 +32,38 @@ class Agent(BaseModel):
     start_step = self.step_op.eval()
     start_time = time.time()
 
-    num_game = 0
-    total_reward = 0.
-    self.total_loss = 0.
-    self.total_q = 0.
-    self.update_count = 0
-    ep_reward = 0.
-    ep_rewards = []
-    actions = []
+    num_game, self.update_count, ep_reward = 0, 0, 0.
+    total_reward, self.total_loss, self.total_q = 0., 0., 0.
+    ep_rewards, actions = [], []
 
-    action = 0
-    warning_count = 0
-    screen, reward, terminal = self.env.new_random_game()
+    screen, action, reward, terminal = self.env.new_random_game()
 
-    for self.step in tqdm(range(start_step, self.max_step), ncols=70, initial=start_step):
+    for _ in range(self.history_length):
       self.history.add(screen)
 
+    for self.step in tqdm(range(start_step, self.max_step), ncols=70, initial=start_step):
       if self.step == self.learn_start:
-        num_game = 0
-        total_reward = 0.
-        self.total_loss = 0.
-        self.total_q = 0.
-        self.update_count = 0
-        ep_reward = 0.
-        ep_rewards = []
-        actions = []
+        num_game, self.update_count, ep_reward = 0, 0, 0.
+        total_reward, self.total_loss, self.total_q = 0., 0., 0.
+        ep_rewards, actions = [], []
 
-      action = self.perceive(screen, reward, action, terminal)
-      actions.append(action)
+      # 1. predict
+      action = self.predict(self.history.get())
+      # 2. act
+      screen, reward, terminal = self.env.act(action, is_training=True)
+      # 3. observe
+      self.observe(screen, reward, action, terminal)
 
       if terminal:
-        screen, reward, terminal = self.env.new_random_game()
-        num_game += 1
+        screen, action, reward, terminal = self.env.new_random_game()
 
+        num_game += 1
         ep_rewards.append(ep_reward)
         ep_reward = 0.
       else:
-        screen, reward, terminal = self.env.act(action, is_training=True)
         ep_reward += reward
 
+      actions.append(action)
       total_reward += reward
 
       if self.step >= self.learn_start:
@@ -115,58 +108,30 @@ class Agent(BaseModel):
           self.step_assign_op.eval({self.step_input: self.step + 1})
           self.save_model(self.step + 1)
 
-  def play(self, n_step=1000, n_episode=3, test_ep=0.01, render=False):
-    test_history = History(self.config)
-
-    if not self.display:
-      self.env.env.monitor.start('/tmp/%s-%s' % (self.env_name, get_time()))
-
-    for i_episode in xrange(n_episode):
-      screen, reward, terminal = self.env.new_game()
-
-      for _ in range(self.history_length):
-        test_history.add(screen)
-
-      for t in tqdm(range(n_step), ncols=70):
-        if random.random() < test_ep:
-          action = random.randint(0, self.env.action_size - 1)
-        else:
-          action = self.q_action.eval({self.s_t: [test_history.get()]})[0]
-
-        screen, reward, terminal = self.env.act(action, is_training=False)
-        test_history.add(screen)
-
-        if terminal:
-          break
-
-    if not self.display:
-      self.env.env.monitor.close()
-
-  def perceive(self, screen, reward, action, terminal, test_ep=None):
-    # reward clipping
-    reward = max(self.min_reward, min(self.max_reward, reward))
-
-    if test_ep == None:
-      self.memory.add(screen, reward, action, terminal)
-
-    # e greedy
+  def predict(self, s_t, test_ep=None):
     ep = test_ep or (self.ep_end +
         max(0., (self.ep_start - self.ep_end)
           * (self.ep_end_t - max(0., self.step - self.learn_start)) / self.ep_end_t))
 
-    if random.random() < ep:
-      action = random.randint(0, self.env.action_size - 1)
+    if random.random() < ep or self.step < self.learn_start:
+      action = random.randrange(self.env.action_size)
     else:
-      action = self.q_action.eval({self.s_t: [self.history.get()]})[0]
+      action = self.q_action.eval({self.s_t: [s_t]})[0]
+
+    return action
+
+  def observe(self, screen, reward, action, terminal):
+    reward = max(self.min_reward, min(self.max_reward, reward))
+
+    self.history.add(screen)
+    self.memory.add(screen, reward, action, terminal)
 
     if self.step > self.learn_start:
-      if test_ep == None and self.step % self.train_frequency == 0:
+      if self.step % self.train_frequency == 0:
         self.q_learning_mini_batch()
 
       if self.step % self.target_q_update_step == self.target_q_update_step - 1:
         self.update_target_q_network()
-
-    return action
 
   def q_learning_mini_batch(self):
     if self.memory.count < self.history_length:
@@ -332,3 +297,29 @@ class Agent(BaseModel):
     })
     for summary_str in summary_str_lists:
       self.writer.add_summary(summary_str, self.step)
+
+  def play(self, n_step=1000, n_episode=3, test_ep=0.01, render=False):
+    test_history = History(self.config)
+
+    if not self.display:
+      self.env.env.monitor.start('/tmp/%s-%s' % (self.env_name, get_time()))
+
+    for i_episode in xrange(n_episode):
+      screen, reward, terminal = self.env.new_game()
+
+      for _ in range(self.history_length):
+        test_history.add(screen)
+
+      for t in tqdm(range(n_step), ncols=70):
+        # 1. predict
+        action = self.predict(self.history.get(), 0.01)
+        # 2. act
+        screen, reward, terminal = self.env.act(action, is_training=False)
+        # 3. observe
+        test_history.add(screen)
+
+        if terminal:
+          break
+
+    if not self.display:
+      self.env.env.monitor.close()

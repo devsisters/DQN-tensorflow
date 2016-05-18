@@ -21,14 +21,14 @@ class Environment(object):
     self._screen = self.env.reset()
     self._step(0)
     self.render()
-    return self.screen, 0, self.terminal
+    return self.screen, 0, 0, self.terminal
 
   def new_random_game(self):
     self.new_game(True)
     for _ in xrange(random.randint(0, self.random_start - 1)):
       self._step(0)
     self.render()
-    return self.screen, 0, self.terminal
+    return self.screen, 0, 0, self.terminal
 
   def _step(self, action):
     self._screen, self.reward, self.terminal, _ = self.env.step(action)
@@ -74,8 +74,9 @@ class GymEnvironment(Environment):
       cumulated_reward = cumulated_reward + self.reward
 
       if is_training and start_lives > self.lives:
+        cumulated_reward -= 1
         self.terminal = True
-        break
+
       if self.terminal:
         break
 
