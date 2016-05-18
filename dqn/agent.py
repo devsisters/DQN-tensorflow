@@ -181,12 +181,13 @@ class Agent(BaseModel):
     max_q_t_plus_1 = np.max(q_t_plus_1, axis=1)
     target_q_t = (1. - terminal) * self.discount * max_q_t_plus_1 + reward
 
-    _, q_t, loss = self.sess.run([self.optim, self.q, self.loss], {
+    _, q_t, loss, summary_str = self.sess.run([self.optim, self.q, self.loss, self.q_summary], {
       self.target_q_t: target_q_t,
       self.action: action,
       self.s_t: s_t,
     })
 
+    self.writer.add_summary(summary_str, self.step)
     self.total_loss += loss
     self.total_q += q_t.mean()
     self.update_count += 1
@@ -221,6 +222,12 @@ class Agent(BaseModel):
       self.l4, self.w['l4_w'], self.w['l4_b'] = linear(self.l3_flat, 512, activation_fn=activation_fn, name='l4')
       self.q, self.w['q_w'], self.w['q_b'] = linear(self.l4, self.env.action_size, name='q')
       self.q_action = tf.argmax(self.q, dimension=1)
+
+      q_summary = []
+      avg_q = tf.reduce_mean(self.q, 0)
+      for idx in xrange(self.env.action_size):
+        q_summary.append(tf.histogram_summary('q/%s' % idx, avg_q[idx]))
+      self.q_summary = tf.merge_summary(q_summary, 'q_summary')
 
     # target network
     with tf.variable_scope('target'):
