@@ -1,9 +1,21 @@
+"""Code modification of https://github.com/tambetm/simple_dqn"""
+
 import os
 import time
 import random
 import numpy as np
 from tqdm import tqdm
 import tensorflow as tf
+
+from neon.util.argparser import NeonArgparser
+from neon.backends import gen_backend
+from neon.initializers import Gaussian
+from neon.optimizers import RMSProp, Adam, Adadelta
+from neon.layers import Affine, Conv, GeneralizedCost
+from neon.transforms import Rectlin
+from neon.models import Model
+from neon.transforms import SumSquared
+from neon.util.persist import save_obj
 
 from .base import BaseModel
 from .history import History
@@ -12,10 +24,18 @@ from .replay_memory import ReplayMemory
 from utils import get_time, save_pkl, load_pkl
 
 class Agent(BaseModel):
-  def __init__(self, config, environment, sess):
+  def __init__(self, config, environment, sess, random_seed):
     super(Agent, self).__init__(config)
     self.sess = sess
-    self.weight_dir = 'weights'
+
+    self.random_seed = random_seed
+    self.datatype = 'float32'
+    self.batch_norm = False
+    self.stochastic_round = False
+    self.backend = 'gpu'
+    self.screen_dim = (self.screen_height, self.screen_width)
+    self.num_actions = environment.action_size
+    self.save_weights_prefix = "neon_net"
 
     self.env = environment
     self.history = History(self.config)
@@ -47,12 +67,17 @@ class Agent(BaseModel):
         total_reward, self.total_loss, self.total_q = 0., 0., 0.
         ep_rewards, actions = [], []
 
-      # 1. predict
-      action = self.predict(self.history.get())
-      # 2. act
-      screen, reward, terminal = self.env.act(action, is_training=True)
-      # 3. observe
-      self.observe(screen, reward, action, terminal)
+      # 1. perform game step
+      action, reward, screen, terminal = self.step(self._explorationRate())
+      self.mem.add(action, reward, screen, terminal)
+      # 2. train after every train_frequency steps
+      if self.mem.count > self.mem.batch_size and i % self.train_frequency == 0:
+        # sample minibatch
+        minibatch = self.mem.getMinibatch()
+        # train the network
+        self.net.train(minibatch, epoch)
+      # increase number of training steps for epsilon decay
+      self.max_step += 1
 
       if terminal:
         screen, reward, action, terminal = self.env.new_random_game()
@@ -109,16 +134,18 @@ class Agent(BaseModel):
           self.save_model(self.step + 1)
 
   def predict(self, s_t, test_ep=None):
-    ep = test_ep or (self.ep_end +
-        max(0., (self.ep_start - self.ep_end)
-          * (self.ep_end_t - max(0., self.step - self.learn_start)) / self.ep_end_t))
+    # minibatch is full size, because Neon doesn't let change the minibatch size
+    assert states.shape == ((self.batch_size, self.history_length,) + self.screen_dim)
 
-    if random.random() < ep:
-      action = random.randrange(self.env.action_size)
-    else:
-      action = self.q_action.eval({self.s_t: [s_t]})[0]
+    # calculate Q-values for the states
+    self._setInput(states)
+    qvalues = self.model.fprop(self.input, inference = True)
+    assert qvalues.shape == (self.num_actions, self.batch_size)
+    if logger.isEnabledFor(logging.DEBUG):
+      logger.debug("Q-values: " + str(qvalues.asnumpyarray()[:,0]))
 
-    return action
+    # transpose the result, so that batch size is first dimension
+    return qvalues.T.asnumpyarray()
 
   def observe(self, screen, reward, action, terminal):
     reward = max(self.min_reward, min(self.max_reward, reward))
@@ -139,18 +166,76 @@ class Agent(BaseModel):
     else:
       s_t, action, reward, s_t_plus_1, terminal = self.memory.sample()
 
-    t = time.time()
-    q_t_plus_1 = self.target_q.eval({self.target_s_t: s_t_plus_1})
+    # expand components of minibatch
+    prestates, actions, rewards, poststates, terminals = minibatch
+    assert len(prestates.shape) == 4
+    assert len(poststates.shape) == 4
+    assert len(actions.shape) == 1
+    assert len(rewards.shape) == 1
+    assert len(terminals.shape) == 1
+    assert prestates.shape == poststates.shape
+    assert prestates.shape[0] == actions.shape[0] == rewards.shape[0] == poststates.shape[0] == terminals.shape[0]
 
-    terminal = np.array(terminal) + 0.
-    max_q_t_plus_1 = np.max(q_t_plus_1, axis=1)
-    target_q_t = (1. - terminal) * self.discount * max_q_t_plus_1 + reward
+    if self.target_q_update_step and self.train_iterations % self.target_q_update_step == 0:
+      # have to serialize also states for batch normalization to work
+      pdict = self.model.get_description(get_weights=True, keep_states=True)
+      self.target_model.deserialize(pdict, load_states=True)
 
-    _, q_t, loss, summary_str = self.sess.run([self.optim, self.q, self.loss, self.q_summary], {
-      self.target_q_t: target_q_t,
-      self.action: action,
-      self.s_t: s_t,
-    })
+    # feed-forward pass for poststates to get Q-values
+    self._setInput(poststates)
+    postq = self.target_model.fprop(self.input, inference = True)
+    assert postq.shape == (self.num_actions, self.batch_size)
+
+    # calculate max Q-value for each poststate
+    maxpostq = self.be.max(postq, axis=0).asnumpyarray()
+    assert maxpostq.shape == (1, self.batch_size)
+
+    # feed-forward pass for prestates
+    self._setInput(prestates)
+    preq = self.model.fprop(self.input, inference = False)
+    assert preq.shape == (self.num_actions, self.batch_size)
+
+    # make copy of prestate Q-values as targets
+    targets = preq.asnumpyarray()
+
+    # clip rewards between -1 and 1
+    rewards = np.clip(rewards, self.min_reward, self.max_reward)
+
+    # update Q-value targets for actions taken
+    for i, action in enumerate(actions):
+      if terminals[i]:
+        targets[action, i] = float(rewards[i])
+      else:
+        targets[action, i] = float(rewards[i]) + self.discount_rate * maxpostq[0,i]
+
+    # copy targets to GPU memory
+    self.targets.set(targets)
+
+    # calculate errors
+    deltas = self.cost.get_errors(preq, self.targets)
+    assert deltas.shape == (self.num_actions, self.batch_size)
+    #assert np.count_nonzero(deltas.asnumpyarray()) == 32
+
+    # calculate cost, just in case
+    cost = self.cost.get_cost(preq, self.targets)
+    assert cost.shape == (1,1)
+
+    # clip errors
+    if self.clip_error:
+      self.be.clip(deltas, -self.clip_error, self.clip_error, out = deltas)
+
+    # perform back-propagation of gradients
+    self.model.bprop(deltas)
+
+    # perform optimization
+    self.optimizer.optimize(self.model.layers_to_optimize, epoch)
+
+    # increase number of weight updates (needed for target clone interval)
+    self.train_iterations += 1
+
+    # calculate statistics
+    if self.callback:
+      self.callback.on_train(cost.asnumpyarray()[0,0])
 
     self.writer.add_summary(summary_str, self.step)
     self.total_loss += loss
@@ -158,138 +243,51 @@ class Agent(BaseModel):
     self.update_count += 1
 
   def build_dqn(self):
-    self.w = {}
-    self.t_w = {}
+    self.be = gen_backend(backend = self.backend,
+                 batch_size = self.batch_size,
+                 rng_seed = self.random_seed,
+                 datatype = np.dtype(self.datatype).type,
+                 stochastic_round = self.stochastic_round)
 
-    #initializer = tf.contrib.layers.xavier_initializer()
-    initializer = tf.truncated_normal_initializer(0, 0.02)
-    activation_fn = tf.nn.relu
+    # prepare tensors once and reuse them
+    self.input_shape = (self.history_length,) + self.screen_dim + (self.batch_size,)
+    self.input = self.be.empty(self.input_shape)
+    self.input.lshape = self.input_shape # HACK: needed for convolutional networks
+    self.targets = self.be.empty((self.num_actions, self.batch_size))
 
-    # training network
-    with tf.variable_scope('prediction'):
-      if self.cnn_format == 'NHWC':
-        self.s_t = tf.placeholder('float32',
-            [None, self.screen_width, self.screen_height, self.history_length], name='s_t')
-      else:
-        self.s_t = tf.placeholder('float32',
-            [None, self.history_length, self.screen_width, self.screen_height], name='s_t')
+    # create model
+    layers = self._createLayers(self.num_actions)
+    self.model = Model(layers = layers)
+    self.cost = GeneralizedCost(costfunc = SumSquared())
 
-      self.l1, self.w['l1_w'], self.w['l1_b'] = conv2d(self.s_t,
-          32, [8, 8], [4, 4], initializer, activation_fn, self.cnn_format, name='l1')
-      self.l2, self.w['l2_w'], self.w['l2_b'] = conv2d(self.l1,
-          64, [4, 4], [2, 2], initializer, activation_fn, self.cnn_format, name='l2')
-      self.l3, self.w['l3_w'], self.w['l3_b'] = conv2d(self.l2,
-          64, [3, 3], [1, 1], initializer, activation_fn, self.cnn_format, name='l3')
+    # Bug fix
+    for l in self.model.layers.layers:
+      l.parallelism = 'Disabled'
 
-      shape = self.l3.get_shape().as_list()
-      self.l3_flat = tf.reshape(self.l3, [-1, reduce(lambda x, y: x * y, shape[1:])])
+    self.optimizer = RMSProp(learning_rate = self.learning_rate, 
+        decay_rate = self.discount, 
+        stochastic_round = self.stochastic_round)
 
-      self.l4, self.w['l4_w'], self.w['l4_b'] = linear(self.l3_flat, 512, activation_fn=activation_fn, name='l4')
-      self.q, self.w['q_w'], self.w['q_b'] = linear(self.l4, self.env.action_size, name='q')
-      self.q_action = tf.argmax(self.q, dimension=1)
+    # create target model
+    self.target_q_update_step = self.target_q_update_step
+    self.train_iterations = 0
+    if self.target_q_update_step:
+      self.target_model = Model(layers = self._createLayers(self.num_actions))
 
-      q_summary = []
-      avg_q = tf.reduce_mean(self.q, 0)
-      for idx in xrange(self.env.action_size):
-        q_summary.append(tf.histogram_summary('q/%s' % idx, avg_q[idx]))
-      self.q_summary = tf.merge_summary(q_summary, 'q_summary')
+      # Bug fix
+      for l in self.target_model.layers.layers:
+        l.parallelism = 'Disabled'
 
-    # target network
-    with tf.variable_scope('target'):
-      if self.cnn_format == 'NHWC':
-        self.target_s_t = tf.placeholder('float32', 
-            [None, self.screen_width, self.screen_height, self.history_length], name='target_s_t')
-      else:
-        self.target_s_t = tf.placeholder('float32', 
-            [None, self.history_length, self.screen_width, self.screen_height], name='target_s_t')
+      self.target_model.initialize(self.input_shape[:-1])
+      self.save_weights_prefix = self.save_weights_prefix
+    else:
+      self.target_model = self.model
 
-      self.target_l1, self.t_w['l1_w'], self.t_w['l1_b'] = conv2d(self.target_s_t, 
-          32, [8, 8], [4, 4], initializer, activation_fn, self.cnn_format, name='target_l1')
-      self.target_l2, self.t_w['l2_w'], self.t_w['l2_b'] = conv2d(self.target_l1,
-          64, [4, 4], [2, 2], initializer, activation_fn, self.cnn_format, name='target_l2')
-      self.target_l3, self.t_w['l3_w'], self.t_w['l3_b'] = conv2d(self.target_l2,
-          64, [3, 3], [1, 1], initializer, activation_fn, self.cnn_format, name='target_l3')
-
-      shape = self.target_l3.get_shape().as_list()
-      self.target_l3_flat = tf.reshape(self.target_l3, [-1, reduce(lambda x, y: x * y, shape[1:])])
-
-      self.target_l4, self.t_w['l4_w'], self.t_w['l4_b'] = \
-          linear(self.target_l3_flat, 512, activation_fn=activation_fn, name='target_l4')
-      self.target_q, self.t_w['q_w'], self.t_w['q_b'] = \
-          linear(self.target_l4, self.env.action_size, name='target_q')
-
-    with tf.variable_scope('pred_to_target'):
-      self.t_w_input = {}
-      self.t_w_assign_op = {}
-
-      for name in self.w.keys():
-        self.t_w_input[name] = tf.placeholder('float32', self.t_w[name].get_shape().as_list(), name=name)
-        self.t_w_assign_op[name] = self.t_w[name].assign(self.t_w_input[name])
-
-    # optimizer
-    with tf.variable_scope('optimizer'):
-      self.target_q_t = tf.placeholder('float32', [None], name='target_q_t')
-      self.action = tf.placeholder('int64', [None], name='action')
-
-      action_one_hot = tf.one_hot(self.action, self.env.action_size, 1.0, 0.0, name='action_one_hot')
-      q_acted = tf.reduce_sum(self.q * action_one_hot, reduction_indices=1, name='q_acted')
-
-      self.delta = self.target_q_t - q_acted
-      self.clipped_delta = tf.clip_by_value(self.delta, self.min_delta, self.max_delta, name='clipped_delta')
-
-      self.loss = tf.reduce_mean(tf.square(self.clipped_delta), name='loss')
-      self.optim = tf.train.RMSPropOptimizer(self.learning_rate, momentum=0.95, epsilon=0.01).minimize(self.loss)
-
-    with tf.variable_scope('summary'):
-      scalar_summary_tags = ['average/reward', 'average/loss', 'average/q', \
-          'episode/max reward', 'episode/min reward', 'episode/avg reward', 'episode/num of game']
-
-      self.summary_placeholders = {}
-      self.summary_ops = {}
-
-      for tag in scalar_summary_tags:
-        self.summary_placeholders[tag] = tf.placeholder('float32', None, name=tag.replace(' ', '_'))
-        self.summary_ops[tag]  = tf.scalar_summary(tag, self.summary_placeholders[tag])
-
-      histogram_summary_tags = ['episode/rewards', 'episode/actions']
-
-      for tag in histogram_summary_tags:
-        self.summary_placeholders[tag] = tf.placeholder('float32', None, name=tag.replace(' ', '_'))
-        self.summary_ops[tag]  = tf.histogram_summary(tag, self.summary_placeholders[tag])
-
-      self.writer = tf.train.SummaryWriter('./logs/%s' % self.model_dir, self.sess.graph)
+    self.callback = None
 
     tf.initialize_all_variables().run()
-
-    self._saver = tf.train.Saver(self.w.values() + [self.step_op], max_to_keep=10)
-
+    self._saver = tf.train.Saver([self.step_op], max_to_keep=10)
     self.load_model()
-    self.update_target_q_network()
-
-  def update_target_q_network(self):
-    for name in self.w.keys():
-      self.t_w_assign_op[name].eval({self.t_w_input[name]: self.w[name].eval()})
-
-  def save_weight_to_pkl(self):
-    if not os.path.exists(self.weight_dir):
-      os.makedirs(self.weight_dir)
-
-    for name in self.w.keys():
-      save_pkl(self.w[name].eval(), os.path.join(self.weight_dir, "%s.pkl" % name))
-
-  def load_weight_from_pkl(self, cpu_mode=False):
-    with tf.variable_scope('load_pred_from_pkl'):
-      self.w_input = {}
-      self.w_assign_op = {}
-
-      for name in self.w.keys():
-        self.w_input[name] = tf.placeholder('float32', self.w[name].get_shape().as_list(), name=name)
-        self.w_assign_op[name] = self.w[name].assign(self.w_input[name])
-
-    for name in self.w.keys():
-      self.w_assign_op[name].eval({self.w_input[name]: load_pkl(os.path.join(self.weight_dir, "%s.pkl" % name))})
-
-    self.update_target_q_network()
 
   def inject_summary(self, tag_dict, step):
     summary_str_lists = self.sess.run([self.summary_ops[tag] for tag in tag_dict.keys()], {
@@ -327,3 +325,51 @@ class Agent(BaseModel):
 
     if not self.display:
       self.env.env.monitor.close()
+
+  def load_weights(self, load_path):
+    self.model.load_params(load_path)
+
+  def save_weights(self, save_path):
+    self.model.save_params(save_path)
+
+  def _createLayers(self, num_actions):
+    # create network
+    init_norm = Gaussian(loc=0.0, scale=0.01)
+    layers = []
+    # The first hidden layer convolves 32 filters of 8x8 with stride 4 with the input image and applies a rectifier nonlinearity.
+    layers.append(Conv((8, 8, 32), strides=4, init=init_norm, activation=Rectlin(), batch_norm=self.batch_norm))
+    # The second hidden layer convolves 64 filters of 4x4 with stride 2, again followed by a rectifier nonlinearity.
+    layers.append(Conv((4, 4, 64), strides=2, init=init_norm, activation=Rectlin(), batch_norm=self.batch_norm))
+    # This is followed by a third convolutional layer that convolves 64 filters of 3x3 with stride 1 followed by a rectifier.
+    layers.append(Conv((3, 3, 64), strides=1, init=init_norm, activation=Rectlin(), batch_norm=self.batch_norm))
+    # The final hidden layer is fully-connected and consists of 512 rectifier units.
+    layers.append(Affine(nout=512, init=init_norm, activation=Rectlin(), batch_norm=self.batch_norm))
+    # The output layer is a fully-connected linear layer with a single output for each valid action.
+    layers.append(Affine(nout=num_actions, init = init_norm))
+    return layers
+
+  def _setInput(self, states):
+    # change order of axes to match what Neon expects
+    states = np.transpose(states, axes = (1, 2, 3, 0))
+    # copy() shouldn't be necessary here, but Neon doesn't work otherwise
+    self.input.set(states.copy())
+    # normalize network input between 0 and 1
+    self.be.divide(self.input, 255, self.input)
+
+  def _restartRandom(self):
+    self.env.restart()
+    # perform random number of dummy actions to produce more stochastic games
+    for i in xrange(random.randint(self.history_length, self.random_starts) + 1):
+      reward = self.env.act(0)
+      screen = self.env.getScreen()
+      terminal = self.env.isTerminal()
+      assert not terminal, "terminal state occurred during random initialization"
+      # add dummy states to buffer
+      self.buf.add(screen)
+
+  def _explorationRate(self):
+    # calculate decaying exploration rate
+    if self.max_step < self.exploration_decay_steps:
+      return self.exploration_rate_start - self.max_step * (self.exploration_rate_start - self.exploration_rate_end) / self.exploration_decay_steps
+    else:
+      return self.exploration_rate_end
