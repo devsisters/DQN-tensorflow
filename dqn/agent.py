@@ -196,7 +196,7 @@ class Agent(BaseModel):
     assert prestates.shape == poststates.shape
     assert prestates.shape[0] == actions.shape[0] == rewards.shape[0] == poststates.shape[0] == terminals.shape[0]
 
-    if self.target_q_update_step and self.train_iterations % self.target_q_update_step == 0:
+    if self.target_q_update_step and self.step % self.target_q_update_step == 0:
       # have to serialize also states for batch normalization to work
       pdict = self.model.get_description(get_weights=True, keep_states=True)
       self.target_model.deserialize(pdict, load_states=True)
@@ -250,9 +250,6 @@ class Agent(BaseModel):
     # perform optimization
     self.optimizer.optimize(self.model.layers_to_optimize, epoch)
 
-    # increase number of weight updates (needed for target clone interval)
-    self.train_iterations += 1
-
     # calculate statistics
     if self.callback:
       self.callback.on_train(cost.asnumpyarray()[0,0])
@@ -289,8 +286,6 @@ class Agent(BaseModel):
         stochastic_round = self.stochastic_round)
 
     # create target model
-    self.target_q_update_step = self.target_q_update_step
-    self.train_iterations = 0
     if self.target_q_update_step:
       self.target_model = Model(layers = self._createLayers(self.num_actions))
 
@@ -377,6 +372,7 @@ class Agent(BaseModel):
   def _explorationRate(self):
     # calculate decaying exploration rate
     if self.step < self.ep_end_t:
-      return self.ep_start - self.step * (self.ep_start - self.ep_end) / self.ep_end_t
+      return self.ep_end + max(0., (self.ep_start - self.ep_end)
+          * (self.ep_end_t - max(0., self.step - self.learn_start)) / self.ep_end_t)
     else:
       return self.ep_end
