@@ -298,7 +298,11 @@ class Agent(BaseModel):
     for summary_str in summary_str_lists:
       self.writer.add_summary(summary_str, self.step)
 
-  def play(self, n_step=10000, n_episode=10, test_ep=0.01, render=False):
+  def play(self, n_step=10000, n_episode=1000, test_ep=None, render=False):
+    if test_ep == None:
+      #test_ep = self.ep_end
+      test_ep = 1e-100
+
     test_history = History(self.config)
 
     if not self.display:
