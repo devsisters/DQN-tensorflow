@@ -102,11 +102,6 @@ class Agent(BaseModel):
       # 2. observe
       self.observe(screen, reward, action, terminal)
 
-      self.memory.add(screen, reward, action, terminal)
-      if self.memory.count > self.memory.batch_size and self.step % self.train_frequency == 0:
-        # train the network
-        self.q_learning_mini_batch()
-
       if terminal:
         screen, reward, action, terminal = self.env.new_random_game()
 
@@ -161,7 +156,7 @@ class Agent(BaseModel):
           self.step_assign_op.eval({self.step_input: self.step + 1})
           self.save_model(self.step + 1)
 
-  def predict(self, s_t, test_ep=None):
+  def predict(self, states, test_ep=None):
     # minibatch is full size, because Neon doesn't let change the minibatch size
     assert states.shape == ((self.batch_size, self.history_length,) + self.screen_dim)
 
@@ -289,8 +284,6 @@ class Agent(BaseModel):
     for l in self.model.layers.layers:
       l.parallelism = 'Disabled'
 
-    import ipdb; ipdb.set_trace() 
-
     self.optimizer = RMSProp(learning_rate = self.learning_rate, 
         decay_rate = self.discount, 
         stochastic_round = self.stochastic_round)
@@ -342,9 +335,7 @@ class Agent(BaseModel):
       for t in tqdm(range(n_step), ncols=70):
         # 1. predict
         action = self.predict(test_history.get(), test_ep)
-        # 2. act
-        screen, reward, terminal = self.env.act(action, is_training=False)
-        # 3. observe
+        # 2. observe
         test_history.add(screen)
 
         if terminal:
@@ -382,15 +373,6 @@ class Agent(BaseModel):
     self.input.set(states.copy())
     # normalize network input between 0 and 1
     self.be.divide(self.input, 255, self.input)
-
-  def _restartRandom(self):
-    self.env.restart()
-    # perform random number of dummy actions to produce more stochastic games
-    for i in xrange(random.randint(self.history_length, self.random_starts) + 1):
-      screen, reward, terminal = self.env.act(0)
-      assert not terminal, "terminal state occurred during random initialization"
-      # add dummy states to buffer
-      self.history.add(screen)
 
   def _explorationRate(self):
     # calculate decaying exploration rate
