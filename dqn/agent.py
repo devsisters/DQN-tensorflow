@@ -70,7 +70,7 @@ class Agent(BaseModel):
 
     # restart the game if over
     if terminal:
-      self._restartRandom()
+      self.env.new_random_game()
 
     # call callback to record statistics
     if self.callback:
@@ -99,13 +99,13 @@ class Agent(BaseModel):
 
       # 1. perform game step
       action, reward, screen, terminal = self.act(self._explorationRate())
-      self.mem.add(action, reward, screen, terminal)
-      # 2. train after every train_frequency steps
-      if self.mem.count > self.mem.batch_size and i % self.train_frequency == 0:
+      # 2. observe
+      self.observe(screen, reward, action, terminal)
+
+      self.memory.add(screen, reward, action, terminal)
+      if self.memory.count > self.memory.batch_size and self.step % self.train_frequency == 0:
         # train the network
         self.q_learning_mini_batch()
-      # increase number of training steps for epsilon decay
-      self.max_step += 1
 
       if terminal:
         screen, reward, action, terminal = self.env.new_random_game()
@@ -187,15 +187,12 @@ class Agent(BaseModel):
         self.update_target_q_network()
 
   def q_learning_mini_batch(self):
-    minibatch = self.mem.getMinibatch()
-
     if self.memory.count < self.history_length:
       return
     else:
-      s_t, action, reward, s_t_plus_1, terminal = self.memory.sample()
+      prestates, actions, rewards, poststates, terminals = self.memory.sample()
 
     # expand components of minibatch
-    prestates, actions, rewards, poststates, terminals = minibatch
     assert len(prestates.shape) == 4
     assert len(poststates.shape) == 4
     assert len(actions.shape) == 1
@@ -291,6 +288,8 @@ class Agent(BaseModel):
     # Bug fix
     for l in self.model.layers.layers:
       l.parallelism = 'Disabled'
+
+    import ipdb; ipdb.set_trace() 
 
     self.optimizer = RMSProp(learning_rate = self.learning_rate, 
         decay_rate = self.discount, 
@@ -395,7 +394,7 @@ class Agent(BaseModel):
 
   def _explorationRate(self):
     # calculate decaying exploration rate
-    if self.max_step < self.ep_end_t:
-      return self.ep_start - self.max_step * (self.ep_start - self.ep_end) / self.ep_end_t
+    if self.step < self.ep_end_t:
+      return self.ep_start - self.step * (self.ep_start - self.ep_end) / self.ep_end_t
     else:
       return self.ep_end
