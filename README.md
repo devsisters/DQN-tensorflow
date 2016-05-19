@@ -44,27 +44,31 @@ Trained in GPU but test in CPU with GPU weights:
 
 ## Results
 
-Training details of Breakout trained with model `m1` (blue) and `m2` (red) for 10 hours with GTX 980 Ti.
+Training details of Breakout trained with model `m2` (red) for 18 hours with GTX 980 Ti.
 
 (`episode/min reward` should be `episode/average reward`. typo)
 
-![tensorboard](assets/tensorboard_160518_scalar1.png)
+![tensorboard](assets/0518_scalar_step_m2.png)
 
-![tensorboard](assets/tensorboard_160518_histogram1.png)
+![tensorboard](assets/0518_scalar_wall_m2.png)
 
-Training details of Breakout trained with model `m3` (blue) and `m4` (red) for 10 hours with GTX 980 Ti.
+![tensorboard](assets/0518_hist_step_m2.png)
 
-(`episode/min reward` should be `episode/average reward`. typo)
+![tensorboard](assets/0518_hist_wall_m2.png)
 
-![tensorboard](assets/tensorboard_160518_scalar2.png)
+Training details of Breakout trained with model `m1` (green), `m2` (purple), `m3` (blue) and `m4` (red) for 15 hours with GTX 980 Ti.
 
-![tensorboard](assets/tensorboard_160518_histogram2.png)
+![tensorboard](assets/0519_scalar_step_all.png)
 
+![tensorboard](assets/0519_scalar_wall_all.png)
+
+![tensorboard](assets/0519_hist_step_all.png)
+
+![tensorboard](assets/0519_hist_wall_all.png)
 
 
 ## References
 
-- [async_rl](https://github.com/muupan/async-rl)
 - [simple_dqn](https://github.com/tambetm/simple_dqn.git)
 - [Code for Human-level control through deep reinforcement learning](https://sites.google.com/a/deepmind.com/dqn/)
 

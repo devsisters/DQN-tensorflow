@@ -298,14 +298,14 @@ class Agent(BaseModel):
     for summary_str in summary_str_lists:
       self.writer.add_summary(summary_str, self.step)
 
-  def play(self, n_step=1000, n_episode=3, test_ep=0.01, render=False):
+  def play(self, n_step=10000, n_episode=10, test_ep=0.01, render=False):
     test_history = History(self.config)
 
     if not self.display:
       self.env.env.monitor.start('/tmp/%s-%s' % (self.env_name, get_time()))
 
     for i_episode in xrange(n_episode):
-      screen, reward, action, terminal = self.env.new_game()
+      screen, reward, action, terminal = self.env.new_random_game()
 
       for _ in range(self.history_length):
         test_history.add(screen)
