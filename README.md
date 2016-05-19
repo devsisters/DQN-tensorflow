@@ -43,7 +43,9 @@ Test and record with gym:
 
 ## Results
 
-(in progress)
+Result of training for 24 hours using GTX 980 ti.
+
+![best](assets/best.gif)
 
 
 ## Training details
