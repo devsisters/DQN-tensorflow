@@ -298,14 +298,15 @@ class Agent(BaseModel):
     for summary_str in summary_str_lists:
       self.writer.add_summary(summary_str, self.step)
 
-  def play(self, n_step=10000, n_episode=10, test_ep=None, render=False):
+  def play(self, n_step=10000, n_episode=100, test_ep=None, render=False):
     if test_ep == None:
       test_ep = self.ep_end
 
     test_history = History(self.config)
 
     if not self.display:
-      self.env.env.monitor.start('/tmp/%s-%s' % (self.env_name, get_time()), video_callable=lambda count: True)
+      gym_dir = '/tmp/%s-%s' % (self.env_name, get_time())
+      self.env.env.monitor.start(gym_dir)
 
     best_reward, best_idx = 0, 0
     for idx in xrange(n_episode):
@@ -337,3 +338,4 @@ class Agent(BaseModel):
 
     if not self.display:
       self.env.env.monitor.close()
+      #gym.upload(gym_dir, writeup='https://github.com/devsisters/DQN-tensorflow', api_key='')
