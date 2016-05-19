@@ -298,7 +298,11 @@ class Agent(BaseModel):
     for summary_str in summary_str_lists:
       self.writer.add_summary(summary_str, self.step)
 
-  def play(self, n_step=10000, n_episode=10, test_ep=0.01, render=False):
+  def play(self, n_step=1000000, n_episode=1000, test_ep=None, render=False):
+    if test_ep == None:
+      test_ep = 1e-100
+      #test_ep = self.ep_end
+
     test_history = History(self.config)
 
     if not self.display:
@@ -318,7 +322,7 @@ class Agent(BaseModel):
         # 3. observe
         test_history.add(screen)
 
-        if terminal:
+        if terminal or t == 9999:
           break
 
     if not self.display:
