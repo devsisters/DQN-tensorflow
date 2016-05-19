@@ -6,7 +6,7 @@ Tensorflow implementation of [Human-Level Control through Deep Reinforcement Lea
 
 This implementation contains:
 
-1. Epsilon-greedy policy and Deep Q-network
+1. Deep Q-network and Q-learning
 2. Experience replay memory
     - to reduce the correlations between consecutive updates
 3. Network for Q-learnig targets are fixed for intervals
@@ -31,14 +31,12 @@ First, install prerequisites with:
 To train a model for Breakout:
 
     $ python main.py --env_name=Breakout-v0 --is_train=True
-
-To test a trained model for Breakout:
-
     $ python main.py --env_name=Breakout-v0 --is_train=True --display=True
 
-Test and record with gym:
+To test and record the screen with gym:
 
     $ python main.py --is_train=False
+    $ python main.py --is_train=False --display=True
 
 
 ## Results

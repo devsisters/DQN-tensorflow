@@ -298,7 +298,7 @@ class Agent(BaseModel):
     for summary_str in summary_str_lists:
       self.writer.add_summary(summary_str, self.step)
 
-  def play(self, n_step=1000000, n_episode=1000, test_ep=None, render=False):
+  def play(self, n_step=10000, n_episode=10, test_ep=None, render=False):
     if test_ep == None:
       test_ep = self.ep_end
 
@@ -310,16 +310,12 @@ class Agent(BaseModel):
     best_reward, best_idx = 0, 0
     for idx in xrange(n_episode):
       screen, reward, action, terminal = self.env.new_random_game()
-
       current_reward = 0
 
       for _ in range(self.history_length):
         test_history.add(screen)
 
       for t in tqdm(range(n_step), ncols=70):
-        if t > 5000:
-          import ipdb; ipdb.set_trace() 
-
         # 1. predict
         action = self.predict(test_history.get(), test_ep)
         # 2. act
@@ -328,7 +324,7 @@ class Agent(BaseModel):
         test_history.add(screen)
 
         current_reward += reward
-        if terminal or t == 9000:
+        if terminal:
           break
 
       if current_reward > best_reward:
