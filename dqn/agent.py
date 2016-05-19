@@ -48,6 +48,36 @@ class Agent(BaseModel):
 
     self.build_dqn()
 
+  def act(self, exploration_rate):
+    # exploration rate determines the probability of random moves
+    if random.random() < exploration_rate:
+      action = random.randrange(self.num_actions)
+    else:
+      # otherwise choose action with highest Q-value
+      state = self.history.get()
+      # for convenience getStateMinibatch() returns minibatch
+      # where first item is the current state
+      qvalues = self.predict(state)
+      assert len(qvalues[0]) == self.num_actions
+      # choose highest Q-value of first state
+      action = np.argmax(qvalues[0])
+
+    # perform the action
+    screen, reward, terminal = self.env.act(action)
+
+    # add screen to buffer
+    self.history.add(screen)
+
+    # restart the game if over
+    if terminal:
+      self._restartRandom()
+
+    # call callback to record statistics
+    if self.callback:
+      self.callback.on_step(action, reward, terminal, screen, exploration_rate)
+
+    return action, reward, screen, terminal
+
   def train(self):
     start_step = self.step_op.eval()
     start_time = time.time()
@@ -68,14 +98,12 @@ class Agent(BaseModel):
         ep_rewards, actions = [], []
 
       # 1. perform game step
-      action, reward, screen, terminal = self.step(self._explorationRate())
+      action, reward, screen, terminal = self.act(self._explorationRate())
       self.mem.add(action, reward, screen, terminal)
       # 2. train after every train_frequency steps
       if self.mem.count > self.mem.batch_size and i % self.train_frequency == 0:
-        # sample minibatch
-        minibatch = self.mem.getMinibatch()
         # train the network
-        self.net.train(minibatch, epoch)
+        self.q_learning_mini_batch()
       # increase number of training steps for epsilon decay
       self.max_step += 1
 
@@ -141,8 +169,6 @@ class Agent(BaseModel):
     self._setInput(states)
     qvalues = self.model.fprop(self.input, inference = True)
     assert qvalues.shape == (self.num_actions, self.batch_size)
-    if logger.isEnabledFor(logging.DEBUG):
-      logger.debug("Q-values: " + str(qvalues.asnumpyarray()[:,0]))
 
     # transpose the result, so that batch size is first dimension
     return qvalues.T.asnumpyarray()
@@ -161,6 +187,8 @@ class Agent(BaseModel):
         self.update_target_q_network()
 
   def q_learning_mini_batch(self):
+    minibatch = self.mem.getMinibatch()
+
     if self.memory.count < self.history_length:
       return
     else:
@@ -360,16 +388,14 @@ class Agent(BaseModel):
     self.env.restart()
     # perform random number of dummy actions to produce more stochastic games
     for i in xrange(random.randint(self.history_length, self.random_starts) + 1):
-      reward = self.env.act(0)
-      screen = self.env.getScreen()
-      terminal = self.env.isTerminal()
+      screen, reward, terminal = self.env.act(0)
       assert not terminal, "terminal state occurred during random initialization"
       # add dummy states to buffer
-      self.buf.add(screen)
+      self.history.add(screen)
 
   def _explorationRate(self):
     # calculate decaying exploration rate
-    if self.max_step < self.exploration_decay_steps:
-      return self.exploration_rate_start - self.max_step * (self.exploration_rate_start - self.exploration_rate_end) / self.exploration_decay_steps
+    if self.max_step < self.ep_end_t:
+      return self.ep_start - self.max_step * (self.ep_start - self.ep_end) / self.ep_end_t
     else:
-      return self.exploration_rate_end
+      return self.ep_end
