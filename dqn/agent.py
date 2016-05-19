@@ -300,21 +300,26 @@ class Agent(BaseModel):
 
   def play(self, n_step=1000000, n_episode=1000, test_ep=None, render=False):
     if test_ep == None:
-      test_ep = 1e-100
-      #test_ep = self.ep_end
+      test_ep = self.ep_end
 
     test_history = History(self.config)
 
     if not self.display:
-      self.env.env.monitor.start('/tmp/%s-%s' % (self.env_name, get_time()))
+      self.env.env.monitor.start('/tmp/%s-%s' % (self.env_name, get_time()), video_callable=lambda count: True)
 
-    for i_episode in xrange(n_episode):
+    best_reward, best_idx = 0, 0
+    for idx in xrange(n_episode):
       screen, reward, action, terminal = self.env.new_random_game()
+
+      current_reward = 0
 
       for _ in range(self.history_length):
         test_history.add(screen)
 
       for t in tqdm(range(n_step), ncols=70):
+        if t > 5000:
+          import ipdb; ipdb.set_trace() 
+
         # 1. predict
         action = self.predict(test_history.get(), test_ep)
         # 2. act
@@ -322,8 +327,17 @@ class Agent(BaseModel):
         # 3. observe
         test_history.add(screen)
 
-        if terminal or t == 9999:
+        current_reward += reward
+        if terminal or t == 9000:
           break
+
+      if current_reward > best_reward:
+        best_reward = current_reward
+        best_idx = idx
+
+      print "="*30
+      print " [%d] Best reward : %d" % (best_idx, best_reward)
+      print "="*30
 
     if not self.display:
       self.env.env.monitor.close()
