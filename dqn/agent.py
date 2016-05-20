@@ -34,6 +34,7 @@ class Agent(BaseModel):
 
     num_game, self.update_count, ep_reward = 0, 0, 0.
     total_reward, self.total_loss, self.total_q = 0., 0., 0.
+    max_avg_ep_reward = 0
     ep_rewards, actions = [], []
 
     screen, reward, action, terminal = self.env.new_random_game()
@@ -104,9 +105,11 @@ class Agent(BaseModel):
           ep_rewards = []
           actions = []
 
-        if self.step % self.save_step == self.save_step - 1:
+        if max_avg_ep_reward >= avg_ep_reward:
           self.step_assign_op.eval({self.step_input: self.step + 1})
           self.save_model(self.step + 1)
+
+          max_avg_ep_reward = max(max_avg_ep_reward, avg_ep_reward)
 
   def predict(self, s_t, test_ep=None):
     ep = test_ep or (self.ep_end +
