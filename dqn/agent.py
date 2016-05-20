@@ -83,7 +83,7 @@ class Agent(BaseModel):
           print '\navg_r: %.4f, avg_l: %.6f, avg_q: %3.6f, avg_ep_r: %.4f, max_ep_r: %.4f, min_ep_r: %.4f, # game: %d' \
               % (avg_reward, avg_loss, avg_q, avg_ep_reward, max_ep_reward, min_ep_reward, num_game)
 
-          if max_avg_ep_reward >= avg_ep_reward * 0.9:
+          if max_avg_ep_reward * 0.9 <= avg_ep_reward:
             self.step_assign_op.eval({self.step_input: self.step + 1})
             self.save_model(self.step + 1)
 
