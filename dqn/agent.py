@@ -105,7 +105,7 @@ class Agent(BaseModel):
           ep_rewards = []
           actions = []
 
-        if max_avg_ep_reward >= avg_ep_reward:
+        if max_avg_ep_reward >= avg_ep_reward * 0.9:
           self.step_assign_op.eval({self.step_input: self.step + 1})
           self.save_model(self.step + 1)
 
@@ -264,7 +264,7 @@ class Agent(BaseModel):
 
     tf.initialize_all_variables().run()
 
-    self._saver = tf.train.Saver(self.w.values() + [self.step_op], max_to_keep=10)
+    self._saver = tf.train.Saver(self.w.values() + [self.step_op], max_to_keep=30)
 
     self.load_model()
     self.update_target_q_network()
