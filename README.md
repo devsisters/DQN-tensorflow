@@ -62,11 +62,11 @@ Details of `Breakout` with model `m2`(red) for 18 hours using GTX 980 Ti.
 Details of `Breakout` with model `m1`(green), `m2`(purple), `m3`(blue) and `m4`(red) for 15 hours using GTX 980 Ti.
 
 1. Statistics of loss, q values, rewards and # of game / episode
-![tensorboard](assets/0519_scalar_step_all.png)
-![tensorboard](assets/0519_scalar_wall_all.png)
+![tensorboard](assets/0520_scalar_step_all.png)
+![tensorboard](assets/0520_scalar_wall_all.png)
 2. Histogram of rewards / episode
-![tensorboard](assets/0519_hist_step_all.png)
-![tensorboard](assets/0519_hist_wall_all.png)
+![tensorboard](assets/0520_hist_step_all.png)
+![tensorboard](assets/0520_hist_wall_all.png)
 
 
 ## References
