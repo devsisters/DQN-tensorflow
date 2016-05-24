@@ -100,6 +100,7 @@ class Agent(BaseModel):
                 'episode/num of game': num_game,
                 'episode/rewards': ep_rewards,
                 'episode/actions': actions,
+                'training/learning_rate': self.learning_rate_op.eval({self.learning_rate_step: self.step}),
               }, self.step)
 
           num_game = 0
@@ -153,6 +154,7 @@ class Agent(BaseModel):
       self.target_q_t: target_q_t,
       self.action: action,
       self.s_t: s_t,
+      self.learning_rate_step: self.step,
     })
 
     self.writer.add_summary(summary_str, self.step)
@@ -240,12 +242,18 @@ class Agent(BaseModel):
       self.delta = self.target_q_t - q_acted
       self.clipped_delta = tf.clip_by_value(self.delta, self.min_delta, self.max_delta, name='clipped_delta')
 
+      self.global_step = tf.Variable(0, trainable=False)
+
       self.loss = tf.reduce_mean(tf.square(self.clipped_delta), name='loss')
-      self.optim = tf.train.RMSPropOptimizer(self.learning_rate, momentum=0.95, epsilon=0.01).minimize(self.loss)
+      self.learning_rate_step = tf.placeholder('int64', None, name='learning_rate_step')
+      self.learning_rate_op = tf.train.exponential_decay(
+          self.learning_rate, self.learning_rate_step, self.learning_rate_decay_step, self.learning_rate_decay, staircase=True)
+      self.optim = tf.train.RMSPropOptimizer(
+          self.learning_rate_op, momentum=0.95, epsilon=0.01).minimize(self.loss)
 
     with tf.variable_scope('summary'):
       scalar_summary_tags = ['average/reward', 'average/loss', 'average/q', \
-          'episode/max reward', 'episode/min reward', 'episode/avg reward', 'episode/num of game']
+          'episode/max reward', 'episode/min reward', 'episode/avg reward', 'episode/num of game', 'training/learning_rate']
 
       self.summary_placeholders = {}
       self.summary_ops = {}
