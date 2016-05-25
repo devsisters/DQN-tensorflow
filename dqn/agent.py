@@ -246,8 +246,13 @@ class Agent(BaseModel):
 
       self.loss = tf.reduce_mean(tf.square(self.clipped_delta), name='loss')
       self.learning_rate_step = tf.placeholder('int64', None, name='learning_rate_step')
-      self.learning_rate_op = tf.train.exponential_decay(
-          self.learning_rate, self.learning_rate_step, self.learning_rate_decay_step, self.learning_rate_decay, staircase=True)
+      self.learning_rate_op = tf.maximum(self.learning_rate_minimum,
+          tf.train.exponential_decay(
+              self.learning_rate,
+              self.learning_rate_step,
+              self.learning_rate_decay_step,
+              self.learning_rate_decay,
+              staircase=True))
       self.optim = tf.train.RMSPropOptimizer(
           self.learning_rate_op, momentum=0.95, epsilon=0.01).minimize(self.loss)
 
