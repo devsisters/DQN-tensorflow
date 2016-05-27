@@ -14,7 +14,7 @@ class Environment(object):
     self.dims = (screen_width, screen_height)
 
     self._screen = None
-    self.rewrad = 0
+    self.reward = 0
     self.terminal = True
 
   def new_game(self, from_random_game=False):
