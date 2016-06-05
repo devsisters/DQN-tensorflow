@@ -8,7 +8,7 @@ def conv2d(x,
            initializer=tf.contrib.layers.xavier_initializer(),
            activation_fn=tf.nn.relu,
            data_format='NHWC',
-           padding='SAME',
+           padding='VALID',
            name='conv2d'):
   with tf.variable_scope(name):
     if data_format == 'NCHW':
