@@ -91,16 +91,16 @@ class Agent(BaseModel):
 
           if self.step > 180:
             self.inject_summary({
-                'average/reward': avg_reward,
-                'average/loss': avg_loss,
-                'average/q': avg_q,
-                'episode/max reward': max_ep_reward,
-                'episode/min reward': min_ep_reward,
-                'episode/avg reward': avg_ep_reward,
-                'episode/num of game': num_game,
-                'episode/rewards': ep_rewards,
-                'episode/actions': actions,
-                'training/learning_rate': self.learning_rate_op.eval({self.learning_rate_step: self.step}),
+                'average.reward': avg_reward,
+                'average.loss': avg_loss,
+                'average.q': avg_q,
+                'episode.max reward': max_ep_reward,
+                'episode.min reward': min_ep_reward,
+                'episode.avg reward': avg_ep_reward,
+                'episode.num of game': num_game,
+                'episode.rewards': ep_rewards,
+                'episode.actions': actions,
+                'training.learning_rate': self.learning_rate_op.eval({self.learning_rate_step: self.step}),
               }, self.step)
 
           num_game = 0
@@ -257,17 +257,17 @@ class Agent(BaseModel):
           self.learning_rate_op, momentum=0.95, epsilon=0.01).minimize(self.loss)
 
     with tf.variable_scope('summary'):
-      scalar_summary_tags = ['average/reward', 'average/loss', 'average/q', \
-          'episode/max reward', 'episode/min reward', 'episode/avg reward', 'episode/num of game', 'training/learning_rate']
+      scalar_summary_tags = ['average.reward', 'average.loss', 'average.q', \
+          'episode.max reward', 'episode.min reward', 'episode.avg reward', 'episode.num of game', 'training.learning_rate']
 
       self.summary_placeholders = {}
       self.summary_ops = {}
 
       for tag in scalar_summary_tags:
         self.summary_placeholders[tag] = tf.placeholder('float32', None, name=tag.replace(' ', '_'))
-        self.summary_ops[tag]  = tf.scalar_summary(tag, self.summary_placeholders[tag])
+        self.summary_ops[tag]  = tf.scalar_summary("%s-%s/%s" % (self.env_name, self.env_type, tag), self.summary_placeholders[tag])
 
-      histogram_summary_tags = ['episode/rewards', 'episode/actions']
+      histogram_summary_tags = ['episode.rewards', 'episode.actions']
 
       for tag in histogram_summary_tags:
         self.summary_placeholders[tag] = tf.placeholder('float32', None, name=tag.replace(' ', '_'))
