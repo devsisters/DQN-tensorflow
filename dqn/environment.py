@@ -13,6 +13,7 @@ class Environment(object):
     self.display = config.display
     self.dims = (screen_width, screen_height)
 
+    self._previous_screen = None
     self._screen = None
     self.reward = 0
     self.terminal = True
@@ -40,6 +41,14 @@ class Environment(object):
 
   @ property
   def screen(self):
+    if not self.terminal and self._previous_screen is not None:
+      _previous_screen = self._screen
+      self._screen = np.maximum(self._screen, self._previous_screen)
+      self._previous_screen = _previous_screen
+
+    if self.previous_screen is None:
+      self.previous_screen = self._screen
+
     return cv2.resize(cv2.cvtColor(self._screen, cv2.COLOR_RGB2GRAY)/255., self.dims)
     #return cv2.resize(cv2.cvtColor(self._screen, cv2.COLOR_BGR2YCR_CB)/255., self.dims)[:,:,0]
 
@@ -75,7 +84,7 @@ class GymEnvironment(Environment):
       cumulated_reward = cumulated_reward + self.reward
 
       if is_training and start_lives > self.lives:
-        cumulated_reward -= 1
+        cumulated_reward += -1
         self.terminal = True
 
       if self.terminal:
