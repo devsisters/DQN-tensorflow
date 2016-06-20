@@ -144,11 +144,21 @@ class Agent(BaseModel):
       s_t, action, reward, s_t_plus_1, terminal = self.memory.sample()
 
     t = time.time()
-    q_t_plus_1 = self.target_q.eval({self.target_s_t: s_t_plus_1})
+    if self.double_q:
+      # Double Q-learning
+      pred_action = self.q.eval({self.s_t: s_t_plus_1})
 
-    terminal = np.array(terminal) + 0.
-    max_q_t_plus_1 = np.max(q_t_plus_1, axis=1)
-    target_q_t = (1. - terminal) * self.discount * max_q_t_plus_1 + reward
+      q_t_plus_1_with_pred_action = self.target_q_with_idx.eval({
+        self.target_s_t: s_t_plus_1,
+        self.target_q_idx: [[idx, pred_a] for idx, pred_a in enumerate(pred_action)]
+      })
+      target_q_t = (1. - terminal) * self.discount * q_t_plus_1_with_pred_action + reward
+    else:
+      q_t_plus_1 = self.target_q.eval({self.target_s_t: s_t_plus_1})
+
+      terminal = np.array(terminal) + 0.
+      max_q_t_plus_1 = np.max(q_t_plus_1, axis=1)
+      target_q_t = (1. - terminal) * self.discount * max_q_t_plus_1 + reward
 
     _, q_t, loss, summary_str = self.sess.run([self.optim, self.q, self.loss, self.q_summary], {
       self.target_q_t: target_q_t,
@@ -189,8 +199,26 @@ class Agent(BaseModel):
       shape = self.l3.get_shape().as_list()
       self.l3_flat = tf.reshape(self.l3, [-1, reduce(lambda x, y: x * y, shape[1:])])
 
-      self.l4, self.w['l4_w'], self.w['l4_b'] = linear(self.l3_flat, 512, activation_fn=activation_fn, name='l4')
-      self.q, self.w['q_w'], self.w['q_b'] = linear(self.l4, self.env.action_size, name='q')
+      if self.dueling:
+        self.value_hid, self.w['l4_val_w'], self.w['l4_val_b'] = \
+            linear(self.l3_flat, 512, activation_fn=activation_fn, name='value_hid')
+
+        self.adv_hid, self.w['l4_adv_w'], self.w['l4_adv_b'] = \
+            linear(self.l3_flat, 512, activation_fn=activation_fn, name='adv_hid')
+
+        self.value, self.w['val_w_out'], self.w['val_w_b'] = \
+          linear(self.value_hid, 1, name='value_out')
+
+        self.advantage, self.w['adv_w_out'], self.w['adv_w_b'] = \
+          linear(self.adv_hid, self.env.action_size, name='adv_out')
+
+        # Average Dueling
+        self.q = self.value + (self.advantage - 
+          tf.reduce_mean(self.advantage, reduction_indices=1, keep_dims=True))
+      else:
+        self.l4, self.w['l4_w'], self.w['l4_b'] = linear(self.l3_flat, 512, activation_fn=activation_fn, name='l4')
+        self.q, self.w['q_w'], self.w['q_b'] = linear(self.l4, self.env.action_size, name='q')
+
       self.q_action = tf.argmax(self.q, dimension=1)
 
       q_summary = []
@@ -218,10 +246,30 @@ class Agent(BaseModel):
       shape = self.target_l3.get_shape().as_list()
       self.target_l3_flat = tf.reshape(self.target_l3, [-1, reduce(lambda x, y: x * y, shape[1:])])
 
-      self.target_l4, self.t_w['l4_w'], self.t_w['l4_b'] = \
-          linear(self.target_l3_flat, 512, activation_fn=activation_fn, name='target_l4')
-      self.target_q, self.t_w['q_w'], self.t_w['q_b'] = \
-          linear(self.target_l4, self.env.action_size, name='target_q')
+      if self.dueling:
+        self.t_value_hid, self.t_w['l4_val_w'], self.t_w['l4_val_b'] = \
+            linear(self.target_l3_flat, 512, activation_fn=activation_fn, name='target_value_hid')
+
+        self.t_adv_hid, self.t_w['l4_adv_w'], self.t_w['l4_adv_b'] = \
+            linear(self.target_l3_flat, 512, activation_fn=activation_fn, name='target_adv_hid')
+
+        self.t_value, self.t_w['val_w_out'], self.t_w['val_w_b'] = \
+          linear(self.t_value_hid, 1, name='target_value_out')
+
+        self.t_advantage, self.t_w['adv_w_out'], self.t_w['adv_w_b'] = \
+          linear(self.t_adv_hid, self.env.action_size, name='target_adv_out')
+
+        # Average Dueling
+        self.target_q = self.t_value + (self.t_advantage - 
+          tf.reduce_mean(self.t_advantage, reduction_indices=1, keep_dims=True))
+      else:
+        self.target_l4, self.t_w['l4_w'], self.t_w['l4_b'] = \
+            linear(self.target_l3_flat, 512, activation_fn=activation_fn, name='target_l4')
+        self.target_q, self.t_w['q_w'], self.t_w['q_b'] = \
+            linear(self.target_l4, self.env.action_size, name='target_q')
+
+        self.target_q_idx = tf.placeholder('int32', [None, None], 'outputs_idx')
+        self.target_q_with_idx = tf.gather_nd(self.target_q, self.target_q_idx)
 
     with tf.variable_scope('pred_to_target'):
       self.t_w_input = {}

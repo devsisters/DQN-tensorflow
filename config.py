@@ -26,6 +26,9 @@ class AgentConfig(object):
   min_delta = -1
   max_delta = 1
 
+  double_q = False
+  dueling = False
+
   _test_step = 1 * scale
   _save_step = _test_step * 5
 
