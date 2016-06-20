@@ -46,8 +46,8 @@ class Environment(object):
       self._screen = np.maximum(self._screen, self._previous_screen)
       self._previous_screen = _previous_screen
 
-    if self.previous_screen is None:
-      self.previous_screen = self._screen
+    if self._previous_screen is None:
+      self._previous_screen = self._screen
 
     return cv2.resize(cv2.cvtColor(self._screen, cv2.COLOR_RGB2GRAY)/255., self.dims)
     #return cv2.resize(cv2.cvtColor(self._screen, cv2.COLOR_BGR2YCR_CB)/255., self.dims)[:,:,0]
