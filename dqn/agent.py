@@ -268,8 +268,8 @@ class Agent(BaseModel):
         self.target_q, self.t_w['q_w'], self.t_w['q_b'] = \
             linear(self.target_l4, self.env.action_size, name='target_q')
 
-        self.target_q_idx = tf.placeholder('int32', [None, None], 'outputs_idx')
-        self.target_q_with_idx = tf.gather_nd(self.target_q, self.target_q_idx)
+      self.target_q_idx = tf.placeholder('int32', [None, None], 'outputs_idx')
+      self.target_q_with_idx = tf.gather_nd(self.target_q, self.target_q_idx)
 
     with tf.variable_scope('pred_to_target'):
       self.t_w_input = {}

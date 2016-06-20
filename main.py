@@ -13,6 +13,8 @@ flags.DEFINE_boolean('display', False, 'Whether to do display the game screen or
 flags.DEFINE_boolean('is_train', True, 'Whether to do training or testing')
 flags.DEFINE_boolean('save_weight', False, 'Save weight from pickle file')
 flags.DEFINE_boolean('load_weight', False, 'Load weight from pickle file')
+flags.DEFINE_boolean('double_q', False, 'Whether to use double q-learning')
+flags.DEFINE_boolean('dueling', False, 'Whether to use dueling deep q-network')
 flags.DEFINE_boolean('cpu', False, 'Use cpu mode')
 flags.DEFINE_integer('random_seed', 123, 'Value of random seed')
 FLAGS = flags.FLAGS
