@@ -146,7 +146,7 @@ class Agent(BaseModel):
     t = time.time()
     if self.double_q:
       # Double Q-learning
-      pred_action = self.q.eval({self.s_t: s_t_plus_1})
+      pred_action = self.q_action.eval({self.s_t: s_t_plus_1})
 
       q_t_plus_1_with_pred_action = self.target_q_with_idx.eval({
         self.target_s_t: s_t_plus_1,
