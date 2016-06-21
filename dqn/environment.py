@@ -17,6 +17,7 @@ class Environment(object):
     self._screen = None
     self.reward = 0
     self.terminal = True
+    self.minus_one_if_dead = config.minus_one_if_dead
 
   def new_game(self, from_random_game=False):
     if self.lives == 0:
@@ -85,6 +86,8 @@ class GymEnvironment(Environment):
       cumulated_reward = cumulated_reward + self.reward
 
       if is_training and start_lives > self.lives:
+        if self.minus_one_if_dead:
+          cumulated_reward += -1
         self.terminal = True
 
       if self.terminal:

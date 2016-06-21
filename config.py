@@ -48,11 +48,13 @@ class M1(DQNConfig):
   backend = 'tf'
   env_type = 'detail'
   action_repeat = 4
+  minus_one_if_dead = True
 
 class M2(DQNConfig):
   backend = 'tf'
-  env_type = 'simple'
+  env_type = 'detail'
   action_repeat = 1
+  minus_one_if_dead = False
 
 def get_config(FLAGS):
   if FLAGS.model == 'm1':
