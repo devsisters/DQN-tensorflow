@@ -48,7 +48,7 @@ def main(_):
     else:
       env = GymEnvironment(config)
 
-    if FLAGS.use_gpu:
+    if not FLAGS.use_gpu:
       config.cnn_format = 'NHWC'
 
     agent = Agent(config, env, sess)
