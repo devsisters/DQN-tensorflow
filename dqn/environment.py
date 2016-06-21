@@ -33,7 +33,16 @@ class Environment(object):
     return self.screen, 0, 0, self.terminal
 
   def _step(self, action):
-    self._screen, self.reward, self.terminal, _ = self.env.step(action)
+    _screen, self.reward, self.terminal, _ = self.env.step(action)
+
+    if self._previous_screen is not None:
+      _previous_screen = _screen
+      _screen = np.maximum(_screen, self._previous_screen)
+      self._previous_screen = _previous_screen
+    else:
+      self._previous_screen = _screen
+
+    self._screen = _screen
 
   def _random_step(self):
     action = self.env.action_space.sample()
@@ -41,14 +50,6 @@ class Environment(object):
 
   @ property
   def screen(self):
-    if not self.terminal and self._previous_screen is not None:
-      _previous_screen = self._screen
-      self._screen = np.maximum(self._screen, self._previous_screen)
-      self._previous_screen = _previous_screen
-
-    if self._previous_screen is None:
-      self._previous_screen = self._screen
-
     return cv2.resize(cv2.cvtColor(self._screen, cv2.COLOR_RGB2GRAY)/255., self.dims)
     #return cv2.resize(cv2.cvtColor(self._screen, cv2.COLOR_BGR2YCR_CB)/255., self.dims)[:,:,0]
 

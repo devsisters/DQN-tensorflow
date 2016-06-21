@@ -17,6 +17,7 @@ flags.DEFINE_boolean('double_q', False, 'Whether to use double q-learning')
 flags.DEFINE_boolean('dueling', False, 'Whether to use dueling deep q-network')
 flags.DEFINE_boolean('use_gpu', True, 'Whether to use gpu or not')
 flags.DEFINE_integer('random_seed', 123, 'Value of random seed')
+flags.DEFINE_integer('action_repeat', 4, 'The number of action to be repeated')
 FLAGS = flags.FLAGS
 
 # Set random seed
@@ -46,15 +47,10 @@ def main(_):
     else:
       env = GymEnvironment(config)
 
-    if FLAGS.cpu:
+    if FLAGS.use_gpu:
       config.cnn_format = 'NHWC'
 
     agent = Agent(config, env, sess)
-
-    if FLAGS.save_weight:
-      agent.save_weight_to_pkl()
-    if FLAGS.load_weight:
-      agent.load_weight_from_pkl(cpu_mode=FLAGS.cpu)
 
     if FLAGS.is_train:
       agent.train()
