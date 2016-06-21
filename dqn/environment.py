@@ -84,7 +84,6 @@ class GymEnvironment(Environment):
       cumulated_reward = cumulated_reward + self.reward
 
       if is_training and start_lives > self.lives:
-        cumulated_reward += -1
         self.terminal = True
 
       if self.terminal:
