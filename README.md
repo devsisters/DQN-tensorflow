@@ -48,13 +48,21 @@ Result of training for 24 hours using GTX 980 ti.
 
 ## Training details
 
-Details of `Breakout` with model `m2`(red) for 30 hours using GTX 980 Ti.
+Details of `Breakout` with model `m2`(red) for 18 hours using GTX 980 Ti.
 
-![tensorboard](assets/0620_scalar_step_m2.png)
+(`episode/min reward` should be `episode/average reward`. typo)
 
-Details of `Breakout` with model `m3`(red) for 30 hours using GTX 980 Ti.
+1. Statistics of loss, q values, rewards and # of game / episode
+![tensorboard](assets/0518_scalar_step_m2.png)
+2. Histogram of rewards / episode
+![tensorboard](assets/0518_hist_step_m2.png)
 
-![tensorboard](assets/0620_scalar_step_m3.png)
+Details of `Breakout` with model `m1`(green), `m2`(purple), `m3`(blue) and `m4`(red) for 15 hours using GTX 980 Ti.
+
+1. Statistics of loss, q values, rewards and # of game / episode
+![tensorboard](assets/0520_scalar_step_all.png)
+2. Histogram of rewards / episode
+![tensorboard](assets/0520_hist_step_all.png)
 
 
 ## References

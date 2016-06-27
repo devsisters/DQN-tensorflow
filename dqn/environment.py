@@ -13,15 +13,12 @@ class Environment(object):
     self.display = config.display
     self.dims = (screen_width, screen_height)
 
-    self._previous_screen = None
     self._screen = None
     self.reward = 0
     self.terminal = True
-    self.minus_one_if_dead = config.minus_one_if_dead
 
   def new_game(self, from_random_game=False):
-    if self.lives == 0:
-      self._screen = self.env.reset()
+    self._screen = self.env.reset()
     self._step(0)
     self.render()
     return self.screen, 0, 0, self.terminal
@@ -34,7 +31,6 @@ class Environment(object):
     return self.screen, 0, 0, self.terminal
 
   def _step(self, action):
-    self._previous_screen = self._screen
     self._screen, self.reward, self.terminal, _ = self.env.step(action)
 
   def _random_step(self):
@@ -78,15 +74,13 @@ class GymEnvironment(Environment):
       cumulated_reward = cumulated_reward + self.reward
 
       if is_training and start_lives > self.lives:
-        if self.minus_one_if_dead:
-          cumulated_reward += -1
+        cumulated_reward -= 1
         self.terminal = True
 
       if self.terminal:
         break
 
     self.reward = cumulated_reward
-    self._screen = np.maximum(self._screen, self._previous_screen)
 
     self.after_act(action)
     return self.state

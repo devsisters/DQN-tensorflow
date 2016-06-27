@@ -10,7 +10,7 @@ class AgentConfig(object):
   cnn_format = 'NCHW'
   discount = 0.99
   target_q_update_step = 1 * scale
-  learning_rate = 0.00025
+  learning_rate = 0.0025
   learning_rate_minimum = 0.00025
   learning_rate_decay = 0.96
   learning_rate_decay_step = 5 * scale
@@ -25,9 +25,6 @@ class AgentConfig(object):
 
   min_delta = -1
   max_delta = 1
-
-  double_q = False
-  dueling = False
 
   _test_step = 1 * scale
   _save_step = _test_step * 5
@@ -48,19 +45,37 @@ class M1(DQNConfig):
   backend = 'tf'
   env_type = 'detail'
   action_repeat = 4
-  minus_one_if_dead = True
 
 class M2(DQNConfig):
   backend = 'tf'
+  env_type = 'simple'
+  action_repeat = 4
+
+class M3(DQNConfig):
+  backend = 'tf'
   env_type = 'detail'
   action_repeat = 1
-  minus_one_if_dead = False
+
+class M4(DQNConfig):
+  backend = 'tf'
+  env_type = 'simple'
+  action_repeat = 1
 
 def get_config(FLAGS):
   if FLAGS.model == 'm1':
     config = M1
   elif FLAGS.model == 'm2':
     config = M2
+  elif FLAGS.model == 'm3':
+    config = M3
+  elif FLAGS.model == 'm4':
+    config = M4
+  elif FLAGS.model == 'm5':
+    config = M1
+  elif FLAGS.model == 'm6':
+    config = M3
+  else:
+    config = M1
 
   for k, v in FLAGS.__dict__['__flags'].items():
     if k == 'gpu':

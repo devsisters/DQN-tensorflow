@@ -6,19 +6,15 @@ from dqn.environment import GymEnvironment, SimpleGymEnvironment
 from config import get_config
 
 flags = tf.app.flags
-flags.DEFINE_string('model', 'm1', 'Type of model')
+flags.DEFINE_string('model', 'm2', 'Type of model')
 flags.DEFINE_string('env_name', 'Breakout-v0', 'The name of gym environment to use')
-flags.DEFINE_string('gpu_fraction', '1/1', 'idx / # of gpu fraction e.g. 1/3, 2/3, 3/3')
+flags.DEFINE_string('gpu_fraction', '9/10', 'idx / # of gpu fraction e.g. 1/3, 2/3, 3/3')
 flags.DEFINE_boolean('display', False, 'Whether to do display the game screen or not')
 flags.DEFINE_boolean('is_train', True, 'Whether to do training or testing')
 flags.DEFINE_boolean('save_weight', False, 'Save weight from pickle file')
 flags.DEFINE_boolean('load_weight', False, 'Load weight from pickle file')
-flags.DEFINE_boolean('double_q', False, 'Whether to use double q-learning')
-flags.DEFINE_boolean('dueling', False, 'Whether to use dueling deep q-network')
-flags.DEFINE_boolean('minus_one_if_dead', False, 'Whether to -1 to reward if a life is discounted')
-flags.DEFINE_boolean('use_gpu', True, 'Whether to use gpu or not')
+flags.DEFINE_boolean('cpu', False, 'Use cpu mode')
 flags.DEFINE_integer('random_seed', 123, 'Value of random seed')
-flags.DEFINE_integer('action_repeat', 4, 'The number of action to be repeated')
 FLAGS = flags.FLAGS
 
 # Set random seed
@@ -48,10 +44,15 @@ def main(_):
     else:
       env = GymEnvironment(config)
 
-    if not FLAGS.use_gpu:
+    if FLAGS.cpu:
       config.cnn_format = 'NHWC'
 
     agent = Agent(config, env, sess)
+
+    if FLAGS.save_weight:
+      agent.save_weight_to_pkl()
+    if FLAGS.load_weight:
+      agent.load_weight_from_pkl(cpu_mode=FLAGS.cpu)
 
     if FLAGS.is_train:
       agent.train()
