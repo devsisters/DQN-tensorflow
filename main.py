@@ -16,10 +16,11 @@ flags.DEFINE_boolean('cpu', False, 'Use cpu mode')
 flags.DEFINE_integer('random_seed', 123, 'Value of random seed')
 
 # Flags for distributed tensorflow
-flags.DEFINE_string("ps_hosts", "localhost:2222", "Comma-separated list of hostname:port pairs")
-flags.DEFINE_string("worker_hosts", "localhost:2223,localhost:2224", "Comma-separated list of hostname:port pairs")
+flags.DEFINE_string("ps_hosts", "0.0.0.0:2222", "Comma-separated list of hostname:port pairs")
+flags.DEFINE_string("worker_hosts", "0.0.0.0:2223,0.0.0.0:2224", "Comma-separated list of hostname:port pairs")
 flags.DEFINE_string("job_name", "", "One of 'ps', 'worker'")
 flags.DEFINE_integer("task_index", 0, "Index of task within the job")
+flags.DEFINE_boolean("is_chief", False, "")
 
 FLAGS = flags.FLAGS
 
@@ -32,8 +33,8 @@ def main(_):
   if FLAGS.cpu:
     config.cnn_format = 'NHWC'
 
-  ps_hosts = config.ps_hosts.split(",")
-  worker_hosts = config.worker_hosts.split(",")
+  ps_hosts = FLAGS.ps_hosts.split(",")
+  worker_hosts = FLAGS.worker_hosts.split(",")
 
   cluster = tf.train.ClusterSpec({"ps": ps_hosts, "worker": worker_hosts})
   server = tf.train.Server(cluster,
@@ -50,22 +51,33 @@ def main(_):
         cluster=cluster)):
 
       # Build model
-      agent = Agent(config, env, sess)
+      agent = Agent(config, env)
+
+    print(agent.model_dir)
 
     # Create a "supervisor", which oversees the training process.
-    sv = tf.train.Supervisor(is_chief=(FLAGS.task_index == 0),
-                             logdir="/tmp/train_logs",
-                             init_op=init_op,
-                             summary_op=summary_op,
-                             saver=saver,
-                             global_step=global_step,
+    is_chief = (FLAGS.task_index == 0)
+    sv = tf.train.Supervisor(is_chief=is_chief,
+                             logdir="./logs/",
+                             init_op=agent.init_op,
+                             summary_op=None,
+                             saver=agent.saver,
+                             global_step=agent.step_op,
                              save_model_secs=600)
 
-  with sv.managed_session(server.target) as sess:
     if FLAGS.is_train:
-      agent.train()
+      if is_chief:
+        train_or_play = agent.train_with_summary
+      else:
+        train_or_play = agent.train
     else:
-      agent.play()
+      train_or_play = agent.play
+
+    with sv.managed_session(server.target) as sess:
+      agent.sess = sess
+      agent.update_target_q_network()
+
+      train_or_play(sv)
 
   # Ask for all the services to stop.
   sv.stop()

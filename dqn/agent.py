@@ -12,29 +12,47 @@ from .replay_memory import ReplayMemory
 from utils import get_time, save_pkl, load_pkl
 
 class Agent(BaseModel):
-  def __init__(self, config, environment, sess):
+  def __init__(self, config, environment):
     super(Agent, self).__init__(config)
-    self.sess = sess
     self.weight_dir = 'weights'
 
     self.env = environment
     self.history = History(self.config)
     self.memory = ReplayMemory(self.config, self.model_dir)
 
-    with tf.variable_scope('step'):
-      self.step_op = tf.Variable(0, trainable=False, name='step')
-      self.step_input = tf.placeholder('int32', None, name='step_input')
-      self.step_assign_op = self.step_op.assign(self.step_input)
-
+    self.step_op = tf.Variable(0, trainable=False, name='step')
     self.build_dqn()
 
-  def train(self):
-    start_step = self.step_op.eval()
+    self.saver = tf.train.Saver(self.w.values() + [self.step_op], max_to_keep=30)
+    self.summary_op = tf.merge_all_summaries()
+    self.init_op = tf.initialize_all_variables()
+
+  def train(self, sv):
+    start_step = self.step_op.eval(session=self.sess)
+    start_time = time.time()
+
+    screen, reward, action, terminal = self.env.new_random_game()
+
+    for _ in range(self.history_length):
+      self.history.add(screen)
+
+    for self.step in tqdm(range(start_step, self.max_step), ncols=70, initial=start_step):
+      # 1. predict
+      action = self.predict(self.history.get())
+      # 2. act
+      screen, reward, terminal = self.env.act(action, is_training=True)
+      # 3. observe
+      self.observe(screen, reward, action, terminal)
+
+      if terminal:
+        screen, reward, action, terminal = self.env.new_random_game()
+
+  def train_with_summary(self, sv):
+    start_step = self.step_op.eval(session=self.sess)
     start_time = time.time()
 
     num_game, self.update_count, ep_reward = 0, 0, 0.
     total_reward, self.total_loss, self.total_q = 0., 0., 0.
-    max_avg_ep_reward = 0
     ep_rewards, actions = [], []
 
     screen, reward, action, terminal = self.env.new_random_game()
@@ -53,7 +71,7 @@ class Agent(BaseModel):
       # 2. act
       screen, reward, terminal = self.env.act(action, is_training=True)
       # 3. observe
-      self.observe(screen, reward, action, terminal)
+      self.observe(screen, reward, action, terminal, is_chief=True)
 
       if terminal:
         screen, reward, action, terminal = self.env.new_random_game()
@@ -83,14 +101,8 @@ class Agent(BaseModel):
           print '\navg_r: %.4f, avg_l: %.6f, avg_q: %3.6f, avg_ep_r: %.4f, max_ep_r: %.4f, min_ep_r: %.4f, # game: %d' \
               % (avg_reward, avg_loss, avg_q, avg_ep_reward, max_ep_reward, min_ep_reward, num_game)
 
-          if max_avg_ep_reward * 0.9 <= avg_ep_reward:
-            self.step_assign_op.eval({self.step_input: self.step + 1})
-            self.save_model(self.step + 1)
-
-            max_avg_ep_reward = max(max_avg_ep_reward, avg_ep_reward)
-
           if self.step > 180:
-            self.inject_summary({
+            self.inject_summary(sv, {
                 'average.reward': avg_reward,
                 'average.loss': avg_loss,
                 'average.q': avg_q,
@@ -100,7 +112,7 @@ class Agent(BaseModel):
                 'episode.num of game': num_game,
                 'episode.rewards': ep_rewards,
                 'episode.actions': actions,
-                'training.learning_rate': self.learning_rate_op.eval({self.learning_rate_step: self.step}),
+                'training.learning_rate': self.learning_rate_op.eval({self.learning_rate_step: self.step}, session=self.sess),
               }, self.step)
 
           num_game = 0
@@ -120,11 +132,11 @@ class Agent(BaseModel):
     if random.random() < ep:
       action = random.randrange(self.env.action_size)
     else:
-      action = self.q_action.eval({self.s_t: [s_t]})[0]
+      action = self.q_action.eval({self.s_t: [s_t]}, session=self.sess)[0]
 
     return action
 
-  def observe(self, screen, reward, action, terminal):
+  def observe(self, screen, reward, action, terminal, is_chief=False):
     reward = max(self.min_reward, min(self.max_reward, reward))
 
     self.history.add(screen)
@@ -132,35 +144,35 @@ class Agent(BaseModel):
 
     if self.step > self.learn_start:
       if self.step % self.train_frequency == 0:
-        self.q_learning_mini_batch()
+        self.q_learning_mini_batch(is_chief)
 
       if self.step % self.target_q_update_step == self.target_q_update_step - 1:
         self.update_target_q_network()
 
-  def q_learning_mini_batch(self):
+  def q_learning_mini_batch(self, is_chief):
     if self.memory.count < self.history_length:
       return
     else:
       s_t, action, reward, s_t_plus_1, terminal = self.memory.sample()
 
     t = time.time()
-    q_t_plus_1 = self.target_q.eval({self.target_s_t: s_t_plus_1})
+    q_t_plus_1 = self.target_q.eval({self.target_s_t: s_t_plus_1}, session=self.sess)
 
     terminal = np.array(terminal) + 0.
     max_q_t_plus_1 = np.max(q_t_plus_1, axis=1)
     target_q_t = (1. - terminal) * self.discount * max_q_t_plus_1 + reward
 
-    _, q_t, loss, summary_str = self.sess.run([self.optim, self.q, self.loss, self.q_summary], {
+    _, q_t, loss = self.sess.run([self.optim, self.q, self.loss], {
       self.target_q_t: target_q_t,
       self.action: action,
       self.s_t: s_t,
       self.learning_rate_step: self.step,
     })
 
-    self.writer.add_summary(summary_str, self.step)
-    self.total_loss += loss
-    self.total_q += q_t.mean()
-    self.update_count += 1
+    if is_chief:
+      self.total_loss += loss
+      self.total_q += q_t.mean()
+      self.update_count += 1
 
   def build_dqn(self):
     self.w = {}
@@ -193,12 +205,6 @@ class Agent(BaseModel):
       self.q, self.w['q_w'], self.w['q_b'] = linear(self.l4, self.env.action_size, name='q')
       self.q_action = tf.argmax(self.q, dimension=1)
 
-      q_summary = []
-      avg_q = tf.reduce_mean(self.q, 0)
-      for idx in xrange(self.env.action_size):
-        q_summary.append(tf.histogram_summary('q/%s' % idx, avg_q[idx]))
-      self.q_summary = tf.merge_summary(q_summary, 'q_summary')
-
     # target network
     with tf.variable_scope('target'):
       if self.cnn_format == 'NHWC':
@@ -228,8 +234,7 @@ class Agent(BaseModel):
       self.t_w_assign_op = {}
 
       for name in self.w.keys():
-        self.t_w_input[name] = tf.placeholder('float32', self.t_w[name].get_shape().as_list(), name=name)
-        self.t_w_assign_op[name] = self.t_w[name].assign(self.t_w_input[name])
+        self.t_w_assign_op[name] = self.t_w[name].assign(self.w[name])
 
     # optimizer
     with tf.variable_scope('optimizer'):
@@ -242,8 +247,6 @@ class Agent(BaseModel):
       self.delta = self.target_q_t - q_acted
       self.clipped_delta = tf.clip_by_value(self.delta, self.min_delta, self.max_delta, name='clipped_delta')
 
-      self.global_step = tf.Variable(0, trainable=False)
-
       self.loss = tf.reduce_mean(tf.square(self.clipped_delta), name='loss')
       self.learning_rate_step = tf.placeholder('int64', None, name='learning_rate_step')
       self.learning_rate_op = tf.maximum(self.learning_rate_minimum,
@@ -254,7 +257,7 @@ class Agent(BaseModel):
               self.learning_rate_decay,
               staircase=True))
       self.optim = tf.train.RMSPropOptimizer(
-          self.learning_rate_op, momentum=0.95, epsilon=0.01).minimize(self.loss)
+          self.learning_rate_op, momentum=0.95, epsilon=0.01).minimize(self.loss, global_step=self.step_op)
 
     with tf.variable_scope('summary'):
       scalar_summary_tags = ['average.reward', 'average.loss', 'average.q', \
@@ -267,52 +270,22 @@ class Agent(BaseModel):
         self.summary_placeholders[tag] = tf.placeholder('float32', None, name=tag.replace(' ', '_'))
         self.summary_ops[tag]  = tf.scalar_summary("%s-%s/%s" % (self.env_name, self.env_type, tag), self.summary_placeholders[tag])
 
+      self.summary_op = tf.merge_summary(self.summary_ops.values(), name='total_summary')
+
       histogram_summary_tags = ['episode.rewards', 'episode.actions']
 
       for tag in histogram_summary_tags:
         self.summary_placeholders[tag] = tf.placeholder('float32', None, name=tag.replace(' ', '_'))
         self.summary_ops[tag]  = tf.histogram_summary(tag, self.summary_placeholders[tag])
 
-      self.writer = tf.train.SummaryWriter('./logs/%s' % self.model_dir, self.sess.graph)
-
-    tf.initialize_all_variables().run()
-
-    self._saver = tf.train.Saver(self.w.values() + [self.step_op], max_to_keep=30)
-
-    self.load_model()
-    self.update_target_q_network()
-
   def update_target_q_network(self):
     for name in self.w.keys():
-      self.t_w_assign_op[name].eval({self.t_w_input[name]: self.w[name].eval()})
+      self.t_w_assign_op[name].eval(session=self.sess)
 
-  def save_weight_to_pkl(self):
-    if not os.path.exists(self.weight_dir):
-      os.makedirs(self.weight_dir)
-
-    for name in self.w.keys():
-      save_pkl(self.w[name].eval(), os.path.join(self.weight_dir, "%s.pkl" % name))
-
-  def load_weight_from_pkl(self, cpu_mode=False):
-    with tf.variable_scope('load_pred_from_pkl'):
-      self.w_input = {}
-      self.w_assign_op = {}
-
-      for name in self.w.keys():
-        self.w_input[name] = tf.placeholder('float32', self.w[name].get_shape().as_list(), name=name)
-        self.w_assign_op[name] = self.w[name].assign(self.w_input[name])
-
-    for name in self.w.keys():
-      self.w_assign_op[name].eval({self.w_input[name]: load_pkl(os.path.join(self.weight_dir, "%s.pkl" % name))})
-
-    self.update_target_q_network()
-
-  def inject_summary(self, tag_dict, step):
-    summary_str_lists = self.sess.run([self.summary_ops[tag] for tag in tag_dict.keys()], {
+  def inject_summary(self, sv, tag_dict, step):
+    sv.summary_computed(self.sess, self.sess.run(self.summary_op, {
       self.summary_placeholders[tag]: value for tag, value in tag_dict.items()
-    })
-    for summary_str in summary_str_lists:
-      self.writer.add_summary(summary_str, self.step)
+    }))
 
   def play(self, n_step=10000, n_episode=100, test_ep=None, render=False):
     if test_ep == None:

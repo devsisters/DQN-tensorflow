@@ -29,11 +29,6 @@ class AgentConfig(object):
   _test_step = 1 * scale
   _save_step = _test_step * 5
 
-  ps_hosts = ''
-  worker_hosts = ''
-  job_name = ''
-  task_index = 0
-
 class EnvironmentConfig(object):
   env_name = 'Breakout-v0'
 
