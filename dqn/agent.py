@@ -130,7 +130,7 @@ class Agent(BaseModel):
           * (self.ep_end_t - max(0., self.step - self.learn_start)) / self.ep_end_t))
 
     if random.random() < ep:
-      action = random.range(self.env.action_size)
+      action = random.randrange(self.env.action_size)
     else:
       action = self.q_action.eval({self.s_t: [s_t]}, session=self.sess)[0]
 

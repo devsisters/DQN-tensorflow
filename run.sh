@@ -4,7 +4,7 @@ join() { local IFS="$1"; shift; echo "$*"; }
 echo_and_run() { echo "\$ $@"; "$@"; }
 
 ps_num=1
-worker_num=4
+worker_num=2
 
 ps_ports=()
 for ((i=0;i<ps_num;i++)); do
