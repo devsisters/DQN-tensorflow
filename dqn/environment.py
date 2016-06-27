@@ -19,6 +19,8 @@ class Environment(object):
 
   def new_game(self, from_random_game=False):
     self._screen = self.env.reset()
+    if self.lives == 0:
+      self._screen = self.env.reset()
     self._step(0)
     self.render()
     return self.screen, 0, 0, self.terminal
