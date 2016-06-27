@@ -30,11 +30,11 @@ First, install prerequisites with:
 
 To train a model for Breakout:
 
-    $ ./run.sh --env_name=Breakout-v0 --is_train=True
+    $ CUDA_VISIBLE_DEVICES=0 ps_num=1 worker_num=8 start_port=2222 ./run.sh --env_name=Breakout-v0 --is_train=True
 
 To test and record the screen with gym:
 
-    $ ./run.sh --is_train=False
+    $ CUDA_VISIBLE_DEVICES=0 ps_num=1 worker_num=8 start_port=2222 ./run.sh --env_name=Breakout-v0 --is_train=False
 
 
 ## Results
