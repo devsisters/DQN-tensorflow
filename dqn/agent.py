@@ -33,10 +33,10 @@ class Agent(BaseModel):
 
     screen, reward, action, terminal = self.env.new_random_game()
 
-    for _ in range(self.history_length):
+    for _ in xrange(self.history_length):
       self.history.add(screen)
 
-    for self.step in tqdm(range(start_step, self.max_step), ncols=70, initial=start_step):
+    for self.step in tqdm(xrange(start_step, self.max_step), ncols=70, initial=start_step):
       # 1. predict
       action = self.predict(self.history.get())
       # 2. act
@@ -57,10 +57,10 @@ class Agent(BaseModel):
 
     screen, reward, action, terminal = self.env.new_random_game()
 
-    for _ in range(self.history_length):
+    for _ in xrange(self.history_length):
       self.history.add(screen)
 
-    for self.step in tqdm(range(start_step, self.max_step), ncols=70, initial=start_step):
+    for self.step in tqdm(xrange(start_step, self.max_step), ncols=70, initial=start_step):
       if self.step == self.learn_start:
         num_game, self.update_count, ep_reward = 0, 0, 0.
         total_reward, self.total_loss, self.total_q = 0., 0., 0.
@@ -130,7 +130,7 @@ class Agent(BaseModel):
           * (self.ep_end_t - max(0., self.step - self.learn_start)) / self.ep_end_t))
 
     if random.random() < ep:
-      action = random.randrange(self.env.action_size)
+      action = random.range(self.env.action_size)
     else:
       action = self.q_action.eval({self.s_t: [s_t]}, session=self.sess)[0]
 
@@ -302,10 +302,10 @@ class Agent(BaseModel):
       screen, reward, action, terminal = self.env.new_random_game()
       current_reward = 0
 
-      for _ in range(self.history_length):
+      for _ in xrange(self.history_length):
         test_history.add(screen)
 
-      for t in tqdm(range(n_step), ncols=70):
+      for t in tqdm(xrange(n_step), ncols=70):
         # 1. predict
         action = self.predict(test_history.get(), test_ep)
         # 2. act
