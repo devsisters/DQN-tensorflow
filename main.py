@@ -58,7 +58,7 @@ def main(_):
     # Create a "supervisor", which oversees the training process.
     is_chief = (FLAGS.task_index == 0)
     sv = tf.train.Supervisor(is_chief=is_chief,
-                             logdir="./logs/",
+                             logdir="./logs/" + agent.model_dir,
                              init_op=agent.init_op,
                              summary_op=None,
                              saver=agent.saver,
