@@ -1,7 +1,7 @@
 #!/bin/bash
 
 join() { local IFS="$1"; shift; echo "$*"; }
-echo_and_run() { echo "\$ $@"; "$@"; }
+echo_and_run() { echo "\$ $@"; }
 
 ps_ports=()
 for ((i=0;i<ps_num;i++)); do

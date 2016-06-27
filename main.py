@@ -6,7 +6,7 @@ from dqn.environment import GymEnvironment, SimpleGymEnvironment
 from config import get_config
 
 flags = tf.app.flags
-flags.DEFINE_string('model', 'm2', 'Type of model')
+flags.DEFINE_string('model', 'm1', 'Type of model')
 flags.DEFINE_string('env_name', 'Breakout-v0', 'The name of gym environment to use')
 flags.DEFINE_boolean('display', False, 'Whether to do display the game screen or not')
 flags.DEFINE_boolean('is_train', True, 'Whether to do training or testing')
@@ -20,7 +20,6 @@ flags.DEFINE_string("ps_hosts", "0.0.0.0:2222", "Comma-separated list of hostnam
 flags.DEFINE_string("worker_hosts", "0.0.0.0:2223,0.0.0.0:2224", "Comma-separated list of hostname:port pairs")
 flags.DEFINE_string("job_name", "", "One of 'ps', 'worker'")
 flags.DEFINE_integer("task_index", 0, "Index of task within the job")
-flags.DEFINE_boolean("is_chief", False, "")
 
 FLAGS = flags.FLAGS
 
@@ -73,7 +72,10 @@ def main(_):
     else:
       train_or_play = agent.play
 
-    with sv.managed_session(server.target) as sess:
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.1)
+
+    #with sv.managed_session(server.target) as sess:
+    with sv.managed_session(server.target, config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
       agent.sess = sess
       agent.update_target_q_network()
 
