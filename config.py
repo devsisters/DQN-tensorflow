@@ -29,6 +29,11 @@ class AgentConfig(object):
   _test_step = 1 * scale
   _save_step = _test_step * 5
 
+  ps_hosts = ''
+  worker_hosts = ''
+  job_name = ''
+  task_index = 0
+
 class EnvironmentConfig(object):
   env_name = 'Breakout-v0'
 
@@ -56,23 +61,12 @@ class M3(DQNConfig):
   env_type = 'detail'
   action_repeat = 1
 
-class M4(DQNConfig):
-  backend = 'tf'
-  env_type = 'simple'
-  action_repeat = 1
-
 def get_config(FLAGS):
   if FLAGS.model == 'm1':
     config = M1
   elif FLAGS.model == 'm2':
     config = M2
   elif FLAGS.model == 'm3':
-    config = M3
-  elif FLAGS.model == 'm4':
-    config = M4
-  elif FLAGS.model == 'm5':
-    config = M1
-  elif FLAGS.model == 'm6':
     config = M3
   else:
     config = M1
