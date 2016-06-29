@@ -26,6 +26,9 @@ class AgentConfig(object):
   min_delta = -1
   max_delta = 1
 
+  double_q = False
+  dueling = False
+
   _test_step = 1 * scale
   _save_step = _test_step * 5
 
@@ -44,21 +47,6 @@ class DQNConfig(AgentConfig, EnvironmentConfig):
 class M1(DQNConfig):
   backend = 'tf'
   env_type = 'detail'
-  action_repeat = 4
-
-class M2(DQNConfig):
-  backend = 'tf'
-  env_type = 'simple'
-  action_repeat = 4
-
-class M3(DQNConfig):
-  backend = 'tf'
-  env_type = 'detail'
-  action_repeat = 1
-
-class M4(DQNConfig):
-  backend = 'tf'
-  env_type = 'simple'
   action_repeat = 1
 
 def get_config(FLAGS):
@@ -66,16 +54,6 @@ def get_config(FLAGS):
     config = M1
   elif FLAGS.model == 'm2':
     config = M2
-  elif FLAGS.model == 'm3':
-    config = M3
-  elif FLAGS.model == 'm4':
-    config = M4
-  elif FLAGS.model == 'm5':
-    config = M1
-  elif FLAGS.model == 'm6':
-    config = M3
-  else:
-    config = M1
 
   for k, v in FLAGS.__dict__['__flags'].items():
     if k == 'gpu':
