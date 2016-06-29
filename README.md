@@ -44,23 +44,42 @@ Result of training for 24 hours using GTX 980 ti.
 ![best](assets/best.gif)
 
 
-## Training details
+## Simple Results
 
-Details of `Breakout` with model `m2`(red) for 18 hours using GTX 980 Ti.
+Details of `Breakout` with model `m2`(red) for 30 hours using GTX 980 Ti.
 
-(`episode/min reward` should be `episode/average reward`. typo)
+![tensorboard](assets/0620_scalar_step_m2.png)
 
-1. Statistics of loss, q values, rewards and # of game / episode
-![tensorboard](assets/0518_scalar_step_m2.png)
-2. Histogram of rewards / episode
-![tensorboard](assets/0518_hist_step_m2.png)
+Details of `Breakout` with model `m3`(red) for 30 hours using GTX 980 Ti.
 
-Details of `Breakout` with model `m1`(green), `m2`(purple), `m3`(blue) and `m4`(red) for 15 hours using GTX 980 Ti.
+![tensorboard](assets/0620_scalar_step_m3.png)
 
-1. Statistics of loss, q values, rewards and # of game / episode
-![tensorboard](assets/0520_scalar_step_all.png)
-2. Histogram of rewards / episode
-![tensorboard](assets/0520_hist_step_all.png)
+
+## Detailed Results
+
+**[1] Action-repeat (frame-skip) of 1, 2, and 4 without learning rate decay**
+
+![A1_A2_A4_0.00025lr](assets/A1_A2_A4_0.00025lr.png)
+
+**[2] Action-repeat (frame-skip) of 1, 2, and 4 with learning rate decay**
+
+![A1_A2_A4_0.0025lr](assets/A1_A2_A4_0.0025lr.png)
+
+**[1] & [2]**
+
+![A1_A2_A4_0.00025lr_0.0025lr](assets/A1_A2_A4_0.00025lr_0.0025lr.png)
+
+
+**[3] Action-repeat of 4 for DQN (dark blue) Dueling DQN (dark green) DDQN (brown) Dueling DDQN (turquoise)**
+
+The current hyper parameters and gradient clipping are not implemented as it is in the paper.
+
+![A4_duel_double](assets/A4_duel_double.png)
+
+
+**[4] Distributed action-repeat (frame-skip) of 4 without learning rate decay**
+
+![A4_0.00025lr_distributed](assets/A4_0.00025lr_distributed.png)
 
 
 ## References
