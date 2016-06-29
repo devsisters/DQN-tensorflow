@@ -37,14 +37,18 @@ random.seed(FLAGS.random_seed)
 
 def main(_):
   config = get_config(FLAGS) or FLAGS
-  if FLAGS.cpu:
+  if not FLAGS.use_gpu:
     config.cnn_format = 'NHWC'
 
   ps_hosts = FLAGS.ps_hosts.split(",")
   worker_hosts = FLAGS.worker_hosts.split(",")
 
   cluster = tf.train.ClusterSpec({"ps": ps_hosts, "worker": worker_hosts})
+  server_config = tf.ConfigProto(
+      gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=0.3), log_device_placement=True)
+
   server = tf.train.Server(cluster,
+                           config=server_config,
                            job_name=FLAGS.job_name,
                            task_index=FLAGS.task_index)
 
@@ -80,10 +84,7 @@ def main(_):
     else:
       train_or_play = agent.play
 
-    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.1)
-
-    #with sv.managed_session(server.target) as sess:
-    with sv.managed_session(server.target, config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
+    with sv.managed_session(server.target) as sess:
       agent.sess = sess
       agent.update_target_q_network()
 

@@ -158,15 +158,15 @@ class Agent(BaseModel):
     t = time.time()
     if self.double_q:
       # Double Q-learning
-      pred_action = self.q_action.eval({self.s_t: s_t_plus_1})
+      pred_action = self.q_action.eval({self.s_t: s_t_plus_1}, session=self.sess)
 
       q_t_plus_1_with_pred_action = self.target_q_with_idx.eval({
         self.target_s_t: s_t_plus_1,
         self.target_q_idx: [[idx, pred_a] for idx, pred_a in enumerate(pred_action)]
-      })
+      }, session=self.sess)
       target_q_t = (1. - terminal) * self.discount * q_t_plus_1_with_pred_action + reward
     else:
-      q_t_plus_1 = self.target_q.eval({self.target_s_t: s_t_plus_1})
+      q_t_plus_1 = self.target_q.eval({self.target_s_t: s_t_plus_1}, session=self.sess)
 
       terminal = np.array(terminal) + 0.
       max_q_t_plus_1 = np.max(q_t_plus_1, axis=1)
