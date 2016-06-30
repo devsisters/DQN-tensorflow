@@ -155,7 +155,7 @@ class Agent(BaseModel):
       if self.step % self.train_frequency == 0:
         self.q_learning_mini_batch(is_chief)
 
-      if self.step % self.target_q_update_step == self.target_q_update_step - 1:
+      if is_chief and self.step % self.target_q_update_step == self.target_q_update_step - 1:
         self.update_target_q_network()
 
   def q_learning_mini_batch(self, is_chief):
