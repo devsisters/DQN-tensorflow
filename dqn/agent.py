@@ -122,7 +122,7 @@ class Agent(BaseModel):
                 'episode.num of game': num_game,
                 'episode.rewards': ep_rewards,
                 'episode.actions': actions,
-                'training.learning_rate': self.learning_rate_op.eval({self.learning_rate_step: self.step}, session=self.sess),
+                'training.learning_rate': self.learning_rate_op.eval(session=self.sess),
               }, self.step)
 
           num_game = 0
@@ -130,7 +130,6 @@ class Agent(BaseModel):
           self.total_loss = 0.
           self.total_q = 0.
           self.update_count = 0
-          ep_reward = 0.
           ep_rewards = []
           actions = []
 
@@ -186,7 +185,6 @@ class Agent(BaseModel):
       self.target_q_t: target_q_t,
       self.action: action,
       self.s_t: s_t,
-      self.learning_rate_step: self.step,
     })
 
     if is_chief:
@@ -306,11 +304,10 @@ class Agent(BaseModel):
       self.clipped_delta = tf.clip_by_value(self.delta, self.min_delta, self.max_delta, name='clipped_delta')
 
       self.loss = tf.reduce_mean(tf.square(self.clipped_delta), name='loss')
-      self.learning_rate_step = tf.placeholder('int64', None, name='learning_rate_step')
       self.learning_rate_op = tf.maximum(self.learning_rate_minimum,
           tf.train.exponential_decay(
               self.learning_rate,
-              self.learning_rate_step,
+              self.step_op,
               self.learning_rate_decay_step,
               self.learning_rate_decay,
               staircase=True))
