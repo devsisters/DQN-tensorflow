@@ -123,7 +123,7 @@ class Agent(BaseModel):
                 'episode.rewards': ep_rewards,
                 'episode.actions': actions,
                 'training.learning_rate': self.learning_rate_op.eval(session=self.sess),
-              }, self.step)
+              }, self.step_op.eval(session=self.sess))
 
           num_game = 0
           total_reward = 0.
@@ -159,7 +159,7 @@ class Agent(BaseModel):
         self.update_target_q_network()
 
   def q_learning_mini_batch(self, is_chief):
-    if self.memory.count < self.history_length:
+    if self.memory.count <= self.history_length:
       return
     else:
       s_t, action, reward, s_t_plus_1, terminal = self.memory.sample()
@@ -209,7 +209,7 @@ class Agent(BaseModel):
         self.s_t = tf.placeholder('float32',
             [None, self.history_length, self.screen_width, self.screen_height], name='s_t')
 
-      self.l1, self.w['l1_w'], self.w['l1_b'] = conv2d(self.s_t,
+      self.l1, self.w['l1_w'], self.w['l1_b'] = conv2d(self.s_t/255.,
           32, [8, 8], [4, 4], initializer, activation_fn, self.cnn_format, name='l1')
       self.l2, self.w['l2_w'], self.w['l2_b'] = conv2d(self.l1,
           64, [4, 4], [2, 2], initializer, activation_fn, self.cnn_format, name='l2')
@@ -250,7 +250,7 @@ class Agent(BaseModel):
         self.target_s_t = tf.placeholder('float32', 
             [None, self.history_length, self.screen_width, self.screen_height], name='target_s_t')
 
-      self.target_l1, self.t_w['l1_w'], self.t_w['l1_b'] = conv2d(self.target_s_t, 
+      self.target_l1, self.t_w['l1_w'], self.t_w['l1_b'] = conv2d(self.target_s_t/255., 
           32, [8, 8], [4, 4], initializer, activation_fn, self.cnn_format, name='target_l1')
       self.target_l2, self.t_w['l2_w'], self.t_w['l2_b'] = conv2d(self.target_l1,
           64, [4, 4], [2, 2], initializer, activation_fn, self.cnn_format, name='target_l2')

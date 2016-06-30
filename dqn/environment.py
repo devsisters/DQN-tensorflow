@@ -1,7 +1,15 @@
-import cv2
 import gym
 import random
 import numpy as np
+
+try:
+  import scipy.misc
+  imresize = scipy.misc.imresize
+  imwrite = scipy.misc.imsave
+except:
+  import cv2
+  imresize = cv2.resize
+  imwrite = cv2.imwrite
 
 class Environment(object):
   def __init__(self, config):
@@ -40,8 +48,9 @@ class Environment(object):
 
   @ property
   def screen(self):
-    return cv2.resize(cv2.cvtColor(self._screen, cv2.COLOR_RGB2GRAY)/255., self.dims)
-    #return cv2.resize(cv2.cvtColor(self._screen, cv2.COLOR_BGR2YCR_CB)/255., self.dims)[:,:,0]
+    y = 0.2126 * self._screen[:, :, 0] + 0.7152 * self._screen[:, :, 1] + 0.0722 * self._screen[:, :, 2]
+    y = y.astype(np.uint8)
+    return imresize(y, self.dims)
 
   @property
   def action_size(self):
