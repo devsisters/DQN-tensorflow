@@ -1,7 +1,7 @@
 #!/bin/bash
 
 join() { local IFS="$1"; shift; echo "$*"; }
-echo_and_run() { echo "\$ $@"; }
+echo_and_run() { echo "$@"; }
 
 ps_ports=()
 for ((i=0;i<ps_num;i++)); do
@@ -16,16 +16,16 @@ done
 ps_hosts=`join , "${ps_ports[@]}"`
 worker_hosts=`join , "${worker_ports[@]}"`
 
-for ((i=0;i<ps_num;i++)); do
+for ((i=0;i<$ps_num;i++)); do
   echo_and_run python main.py \
       --ps_hosts=$ps_hosts \
       --worker_hosts=$worker_hosts \
-      --job_name=ps --task_index=$i "$@" &
+      --job_name=ps --task_index=$i "$@" \&
 done
 
-for ((i=0;i<worker_num;i++)); do
-  echo_and_run python main.py \
+for ((i=0;i<$worker_num;i++)); do
+  echo_and_run CUDA_VISIBLE_DEVICES=$(($i/($worker_num/$gpu_num))) python main.py \
       --ps_hosts=$ps_hosts \
       --worker_hosts=$worker_hosts \
-      --job_name=worker --task_index=$i "$@" &
+      --job_name=worker --task_index=$i "$@" \&
 done
