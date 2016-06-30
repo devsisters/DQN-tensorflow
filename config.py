@@ -1,5 +1,5 @@
 class AgentConfig(object):
-  scale = 10000
+  scale = 50
   display = False
 
   max_step = 5000 * scale
@@ -15,6 +15,11 @@ class AgentConfig(object):
   learning_rate_decay = 0.96
   learning_rate_decay_step = 5 * scale
 
+  decay = 0.99
+  epsilon = 0.1
+  momentum = 0.0
+  beta = 0.01
+
   ep_end = 0.1
   ep_start = 1.
   ep_end_t = memory_size
@@ -29,8 +34,7 @@ class AgentConfig(object):
   double_q = False
   dueling = False
 
-  _test_step = 0.1 * scale
-  _save_step = _test_step * 1
+  _test_step = 1 * scale
 
 class EnvironmentConfig(object):
   env_name = 'Breakout-v0'

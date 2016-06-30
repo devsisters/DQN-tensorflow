@@ -20,7 +20,6 @@ flags.DEFINE_integer('action_repeat', 1, 'The number of action to be repeated')
 flags.DEFINE_float('decay', 0.99, 'Decay of RMSProp optimizer')
 flags.DEFINE_float('epsilon', 0.1, 'Epsilon of RMSProp optimizer')
 flags.DEFINE_float('momentum', 0.0, 'Momentum of RMSProp optimizer')
-flags.DEFINE_float('gamma', 0.99, 'Discount factor of return')
 flags.DEFINE_float('beta', 0.01, 'Beta of RMSProp optimizer')
 
 # Distributed

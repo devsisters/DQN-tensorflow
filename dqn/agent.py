@@ -9,7 +9,7 @@ from .base import BaseModel
 from .history import History
 from .ops import linear, conv2d
 from .replay_memory import ReplayMemory
-from utils import get_time, save_pkl, load_pkl
+from utils import get_time
 
 class Agent(BaseModel):
   def __init__(self, config, environment, optimizer, lr_op):
@@ -31,20 +31,18 @@ class Agent(BaseModel):
     self.init_op = tf.initialize_all_variables()
 
   def train(self, sv, is_chief):
-    start_step = self.step_op.eval(session=self.sess)
-    start_time = time.time()
-
+    self.step = self.step_op.eval(session=self.sess)
     screen, reward, action, terminal = self.env.new_random_game()
 
     for _ in xrange(self.history_length):
       self.history.add(screen)
 
     if is_chief:
-      iterator = tqdm(xrange(start_step, self.max_step), ncols=70, initial=start_step)
+      iterator = tqdm(xrange(self.step, self.max_step), ncols=70, initial=self.step)
     else:
-      iterator = xrange(start_step, self.max_step)
+      iterator = xrange(self.step, self.max_step)
 
-    while sv.should_stop():
+    for _ in iterator:
       if self.step >= self.max_step:
         sv.request_stop()
 
@@ -59,24 +57,22 @@ class Agent(BaseModel):
         screen, reward, action, terminal = self.env.new_random_game()
 
   def train_with_summary(self, sv, is_chief):
-    start_step = self.step_op.eval(session=self.sess)
-    start_time = time.time()
+    self.step = self.step_op.eval(session=self.sess)
+    screen, reward, action, terminal = self.env.new_random_game()
 
     num_game, self.update_count, ep_reward = 0, 0, 0.
     total_reward, self.total_loss, self.total_q = 0., 0., 0.
     ep_rewards, actions = [], []
 
-    screen, reward, action, terminal = self.env.new_random_game()
-
     for _ in xrange(self.history_length):
       self.history.add(screen)
 
     if is_chief:
-      iterator = tqdm(xrange(start_step, self.max_step), ncols=70, initial=start_step)
+      iterator = tqdm(xrange(self.step, self.max_step), ncols=70, initial=self.step)
     else:
-      iterator = xrange(start_step, self.max_step)
+      iterator = xrange(self.step, self.max_step)
 
-    while sv.should_stop():
+    for _ in iterator:
       if self.step >= self.max_step:
         sv.request_stop()
 
@@ -131,7 +127,7 @@ class Agent(BaseModel):
                 'episode.num of game': num_game,
                 'episode.rewards': ep_rewards,
                 'episode.actions': actions,
-                'training.learning_rate': self.learning_rate_op.eval(session=self.sess),
+                'training.learning_rate': self.lr,
               }, self.step)
 
           num_game = 0
@@ -166,7 +162,7 @@ class Agent(BaseModel):
       if self.step % self.train_frequency == 0:
         self.q_learning_mini_batch(is_chief)
 
-      if step % self.target_q_update_step == self.target_q_update_step - 1:
+      if self.step % self.target_q_update_step == self.target_q_update_step - 1:
         self.update_target_q_network()
 
   def q_learning_mini_batch(self, is_chief):
@@ -196,7 +192,7 @@ class Agent(BaseModel):
       self.target_q_t: target_q_t,
       self.action: action,
       self.s_t: s_t,
-      self.lr_op: (self.max_step - self.step + 1) / self.max_step * self.learning_rate
+      self.lr_op: self.lr,
     })
 
     if is_chief:
@@ -316,7 +312,7 @@ class Agent(BaseModel):
       self.clipped_delta = tf.clip_by_value(self.delta, self.min_delta, self.max_delta, name='clipped_delta')
 
       self.loss = tf.reduce_mean(tf.square(self.clipped_delta), name='loss')
-      self.optim = self.optimizer.minimize(self.loss, global_step=self.step_op)
+      self.optim = self.optimizer.minimize(self.loss)
 
     with tf.variable_scope('summary'):
       scalar_summary_tags = ['average.reward', 'average.loss', 'average.q', \
@@ -387,3 +383,7 @@ class Agent(BaseModel):
     if not self.display:
       self.env.env.monitor.close()
       #gym.upload(gym_dir, writeup='https://github.com/devsisters/DQN-tensorflow', api_key='')
+
+  @property
+  def lr(self):
+    return (self.max_step - self.step + 1) / self.max_step * self.learning_rate
