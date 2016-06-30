@@ -22,6 +22,7 @@ class Agent(BaseModel):
 
     self.lr_op = lr_op
     self.optimizer = optimizer
+
     self.step_op = tf.Variable(0, trainable=False, name='step')
     self.step_inc_op = self.step_op.assign_add(1)
     self.build_dqn()
@@ -139,7 +140,8 @@ class Agent(BaseModel):
           actions = []
 
   def predict(self, s_t, test_ep=None):
-    self.step, _ = self.sess.run([self.step_op, self.step_inc_op])
+    self.step_inc_op.eval(session=self.sess)
+    self.step = self.step_op.eval(session=self.sess)
 
     ep = test_ep or (self.ep_end +
         max(0., (self.ep_start - self.ep_end)
@@ -171,7 +173,6 @@ class Agent(BaseModel):
     else:
       s_t, action, reward, s_t_plus_1, terminal = self.memory.sample()
 
-    t = time.time()
     if self.double_q:
       # Double Q-learning
       pred_action = self.q_action.eval({self.s_t: s_t_plus_1}, session=self.sess)
@@ -386,4 +387,4 @@ class Agent(BaseModel):
 
   @property
   def lr(self):
-    return (self.max_step - self.step + 1) / self.max_step * self.learning_rate
+    return (self.max_step - self.step + 1.) / self.max_step * self.learning_rate
