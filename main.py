@@ -16,6 +16,13 @@ flags.DEFINE_boolean('double_q', False, 'Whether to use double q-learning')
 flags.DEFINE_string('env_name', 'Breakout-v0', 'The name of gym environment to use')
 flags.DEFINE_integer('action_repeat', 1, 'The number of action to be repeated')
 
+# Optimizer
+flags.DEFINE_float('decay', 0.99, 'Decay of RMSProp optimizer')
+flags.DEFINE_float('epsilon', 0.1, 'Epsilon of RMSProp optimizer')
+flags.DEFINE_float('momentum', 0.0, 'Momentum of RMSProp optimizer')
+flags.DEFINE_float('gamma', 0.99, 'Discount factor of return')
+flags.DEFINE_float('beta', 0.01, 'Beta of RMSProp optimizer')
+
 # Distributed
 flags.DEFINE_string("ps_hosts", "0.0.0.0:2222", "Comma-separated list of hostname:port pairs")
 flags.DEFINE_string("worker_hosts", "0.0.0.0:2223,0.0.0.0:2224", "Comma-separated list of hostname:port pairs")
@@ -60,9 +67,14 @@ def main(_):
     with tf.device(tf.train.replica_device_setter(
         worker_device="/job:worker/task:%d" % FLAGS.task_index,
         cluster=cluster)):
+      lr_op = tf.placeholder('float', None, name='learning_rate')
+      optimizer = tf.train.RMSPropOptimizer(lr_op,
+                                            config.decay,
+                                            config.momentum,
+                                            config.epsilon)
+      agent = Agent(config, env, optimizer, lr_op)
 
-      # Build model
-      agent = Agent(config, env)
+      agent.ep_end = random.sample([0.1, 0.01, 0.5], 1)[0]
 
     print(agent.model_dir)
 

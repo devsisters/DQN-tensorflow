@@ -12,7 +12,7 @@ from .replay_memory import ReplayMemory
 from utils import get_time, save_pkl, load_pkl
 
 class Agent(BaseModel):
-  def __init__(self, config, environment):
+  def __init__(self, config, environment, optimizer, lr_op):
     super(Agent, self).__init__(config)
     self.weight_dir = 'weights'
 
@@ -20,7 +20,10 @@ class Agent(BaseModel):
     self.history = History(self.config)
     self.memory = ReplayMemory(self.config, self.model_dir)
 
+    self.lr_op = lr_op
+    self.optimizer = optimizer
     self.step_op = tf.Variable(0, trainable=False, name='step')
+    self.step_inc_op = self.step_op.assign_add(1)
     self.build_dqn()
 
     self.saver = tf.train.Saver(self.w.values() + [self.step_op], max_to_keep=30)
@@ -41,7 +44,10 @@ class Agent(BaseModel):
     else:
       iterator = xrange(start_step, self.max_step)
 
-    for self.step in iterator:
+    while sv.should_stop():
+      if self.step >= self.max_step:
+        sv.request_stop()
+
       # 1. predict
       action = self.predict(self.history.get())
       # 2. act
@@ -70,7 +76,10 @@ class Agent(BaseModel):
     else:
       iterator = xrange(start_step, self.max_step)
 
-    for self.step in iterator:
+    while sv.should_stop():
+      if self.step >= self.max_step:
+        sv.request_stop()
+
       if self.step == self.learn_start:
         num_game, self.update_count, ep_reward = 0, 0, 0.
         total_reward, self.total_loss, self.total_q = 0., 0., 0.
@@ -123,7 +132,7 @@ class Agent(BaseModel):
                 'episode.rewards': ep_rewards,
                 'episode.actions': actions,
                 'training.learning_rate': self.learning_rate_op.eval(session=self.sess),
-              }, self.step_op.eval(session=self.sess))
+              }, self.step)
 
           num_game = 0
           total_reward = 0.
@@ -134,6 +143,8 @@ class Agent(BaseModel):
           actions = []
 
   def predict(self, s_t, test_ep=None):
+    self.step, _ = self.sess.run([self.step_op, self.step_inc_op])
+
     ep = test_ep or (self.ep_end +
         max(0., (self.ep_start - self.ep_end)
           * (self.ep_end_t - max(0., self.step - self.learn_start)) / self.ep_end_t))
@@ -155,7 +166,7 @@ class Agent(BaseModel):
       if self.step % self.train_frequency == 0:
         self.q_learning_mini_batch(is_chief)
 
-      if is_chief and self.step % self.target_q_update_step == self.target_q_update_step - 1:
+      if step % self.target_q_update_step == self.target_q_update_step - 1:
         self.update_target_q_network()
 
   def q_learning_mini_batch(self, is_chief):
@@ -185,6 +196,7 @@ class Agent(BaseModel):
       self.target_q_t: target_q_t,
       self.action: action,
       self.s_t: s_t,
+      self.lr_op: (self.max_step - self.step + 1) / self.max_step * self.learning_rate
     })
 
     if is_chief:
@@ -304,15 +316,7 @@ class Agent(BaseModel):
       self.clipped_delta = tf.clip_by_value(self.delta, self.min_delta, self.max_delta, name='clipped_delta')
 
       self.loss = tf.reduce_mean(tf.square(self.clipped_delta), name='loss')
-      self.learning_rate_op = tf.maximum(self.learning_rate_minimum,
-          tf.train.exponential_decay(
-              self.learning_rate,
-              self.step_op,
-              self.learning_rate_decay_step,
-              self.learning_rate_decay,
-              staircase=True))
-      self.optim = tf.train.RMSPropOptimizer(
-          self.learning_rate_op, momentum=0.95, epsilon=0.01).minimize(self.loss, global_step=self.step_op)
+      self.optim = self.optimizer.minimize(self.loss, global_step=self.step_op)
 
     with tf.variable_scope('summary'):
       scalar_summary_tags = ['average.reward', 'average.loss', 'average.q', \
