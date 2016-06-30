@@ -79,7 +79,11 @@ The current hyper parameters and gradient clipping are not implemented as it is 
 ![A4_duel_double](assets/A4_duel_double.png)
 
 
-**[4] Distributed action-repeat (frame-skip) of 4 without learning rate decay**
+**[4] Distributed action-repeat (frame-skip) of 1 without learning rate decay**
+
+![A1_0.00025lr_distributed](assets/A4_0.00025lr_distributed.png)
+
+**[5] Distributed action-repeat (frame-skip) of 4 without learning rate decay**
 
 ![A4_0.00025lr_distributed](assets/A4_0.00025lr_distributed.png)
 
