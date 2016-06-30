@@ -27,7 +27,7 @@ class Agent(BaseModel):
     self.summary_op = tf.merge_all_summaries()
     self.init_op = tf.initialize_all_variables()
 
-  def train(self, sv):
+  def train(self, sv, is_chief):
     start_step = self.step_op.eval(session=self.sess)
     start_time = time.time()
 
@@ -36,7 +36,12 @@ class Agent(BaseModel):
     for _ in xrange(self.history_length):
       self.history.add(screen)
 
-    for self.step in tqdm(xrange(start_step, self.max_step), ncols=70, initial=start_step):
+    if is_chief:
+      iterator = tqdm(xrange(start_step, self.max_step), ncols=70, initial=start_step)
+    else:
+      iterator = xrange(start_step, self.max_step)
+
+    for self.step in iterator:
       # 1. predict
       action = self.predict(self.history.get())
       # 2. act
@@ -47,7 +52,7 @@ class Agent(BaseModel):
       if terminal:
         screen, reward, action, terminal = self.env.new_random_game()
 
-  def train_with_summary(self, sv):
+  def train_with_summary(self, sv, is_chief):
     start_step = self.step_op.eval(session=self.sess)
     start_time = time.time()
 
@@ -60,7 +65,12 @@ class Agent(BaseModel):
     for _ in xrange(self.history_length):
       self.history.add(screen)
 
-    for self.step in tqdm(xrange(start_step, self.max_step), ncols=70, initial=start_step):
+    if is_chief:
+      iterator = tqdm(xrange(start_step, self.max_step), ncols=70, initial=start_step)
+    else:
+      iterator = xrange(start_step, self.max_step)
+
+    for self.step in iterator:
       if self.step == self.learn_start:
         num_game, self.update_count, ep_reward = 0, 0, 0.
         total_reward, self.total_loss, self.total_q = 0., 0., 0.
@@ -335,7 +345,7 @@ class Agent(BaseModel):
       self.summary_placeholders[tag]: value for tag, value in tag_dict.items()
     }))
 
-  def play(self, n_step=10000, n_episode=100, test_ep=None, render=False):
+  def play(self, sv, is_chief, n_step=10000, n_episode=100, test_ep=None, render=False):
     if test_ep == None:
       test_ep = self.ep_end
 

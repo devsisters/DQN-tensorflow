@@ -14,7 +14,7 @@ flags.DEFINE_boolean('double_q', False, 'Whether to use double q-learning')
 
 # Environment
 flags.DEFINE_string('env_name', 'Breakout-v0', 'The name of gym environment to use')
-flags.DEFINE_integer('action_repeat', 4, 'The number of action to be repeated')
+flags.DEFINE_integer('action_repeat', 1, 'The number of action to be repeated')
 
 # Distributed
 flags.DEFINE_string("ps_hosts", "0.0.0.0:2222", "Comma-separated list of hostname:port pairs")
@@ -45,7 +45,7 @@ def main(_):
 
   cluster = tf.train.ClusterSpec({"ps": ps_hosts, "worker": worker_hosts})
   server_config = tf.ConfigProto(
-      gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=1.0), log_device_placement=True)
+      gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=0.4), log_device_placement=True)
 
   server = tf.train.Server(cluster,
                            config=server_config,
@@ -88,7 +88,7 @@ def main(_):
       agent.sess = sess
       agent.update_target_q_network()
 
-      train_or_play(sv)
+      train_or_play(sv, is_chief)
 
   # Ask for all the services to stop.
   sv.stop()

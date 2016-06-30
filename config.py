@@ -1,10 +1,10 @@
 class AgentConfig(object):
-  scale = 50
-  #scale = 10000
+  #scale = 50
+  scale = 10000
   display = False
 
   max_step = 5000 * scale
-  memory_size = 50 * scale
+  memory_size = 10 * scale
 
   batch_size = 32
   random_start = 30
