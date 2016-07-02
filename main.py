@@ -67,10 +67,8 @@ def main(_):
         worker_device="/job:worker/task:%d" % FLAGS.task_index,
         cluster=cluster)):
       lr_op = tf.placeholder('float', None, name='learning_rate')
-      optimizer = tf.train.RMSPropOptimizer(lr_op,
-                                            config.decay,
-                                            config.momentum,
-                                            config.epsilon)
+      optimizer = tf.train.RMSPropOptimizer(
+          lr_op, momentum=0.95, epsilon=0.01)
       agent = Agent(config, env, optimizer, lr_op)
 
       agent.ep_end = random.sample([0.1, 0.01, 0.5], 1)[0]
