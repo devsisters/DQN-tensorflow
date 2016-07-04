@@ -223,21 +223,19 @@ class Agent(BaseModel):
             [None, self.history_length, self.screen_width, self.screen_height], name='s_t')
 
       self.l1, self.w['l1_w'], self.w['l1_b'] = conv2d(self.s_t/255.,
-          32, [8, 8], [4, 4], initializer, activation_fn, self.cnn_format, name='l1')
+          16, [8, 8], [4, 4], initializer, activation_fn, self.cnn_format, name='l1')
       self.l2, self.w['l2_w'], self.w['l2_b'] = conv2d(self.l1,
-          64, [4, 4], [2, 2], initializer, activation_fn, self.cnn_format, name='l2')
-      self.l3, self.w['l3_w'], self.w['l3_b'] = conv2d(self.l2,
-          64, [3, 3], [1, 1], initializer, activation_fn, self.cnn_format, name='l3')
+          32, [4, 4], [2, 2], initializer, activation_fn, self.cnn_format, name='l2')
 
       shape = self.l3.get_shape().as_list()
       self.l3_flat = tf.reshape(self.l3, [-1, reduce(lambda x, y: x * y, shape[1:])])
 
       if self.dueling:
         self.value_hid, self.w['l4_val_w'], self.w['l4_val_b'] = \
-            linear(self.l3_flat, 512, activation_fn=activation_fn, name='value_hid')
+            linear(self.l3_flat, 256, activation_fn=activation_fn, name='value_hid')
 
         self.adv_hid, self.w['l4_adv_w'], self.w['l4_adv_b'] = \
-            linear(self.l3_flat, 512, activation_fn=activation_fn, name='adv_hid')
+            linear(self.l3_flat, 256, activation_fn=activation_fn, name='adv_hid')
 
         self.value, self.w['val_w_out'], self.w['val_w_b'] = \
           linear(self.value_hid, 1, name='value_out')
@@ -249,7 +247,7 @@ class Agent(BaseModel):
         self.q = self.value + (self.advantage - 
           tf.reduce_mean(self.advantage, reduction_indices=1, keep_dims=True))
       else:
-        self.l4, self.w['l4_w'], self.w['l4_b'] = linear(self.l3_flat, 512, activation_fn=activation_fn, name='l4')
+        self.l4, self.w['l4_w'], self.w['l4_b'] = linear(self.l3_flat, 256, activation_fn=activation_fn, name='l4')
         self.q, self.w['q_w'], self.w['q_b'] = linear(self.l4, self.env.action_size, name='q')
 
       self.q_action = tf.argmax(self.q, dimension=1)
@@ -264,21 +262,19 @@ class Agent(BaseModel):
             [None, self.history_length, self.screen_width, self.screen_height], name='target_s_t')
 
       self.target_l1, self.t_w['l1_w'], self.t_w['l1_b'] = conv2d(self.target_s_t/255., 
-          32, [8, 8], [4, 4], initializer, activation_fn, self.cnn_format, name='target_l1')
+          16, [8, 8], [4, 4], initializer, activation_fn, self.cnn_format, name='target_l1')
       self.target_l2, self.t_w['l2_w'], self.t_w['l2_b'] = conv2d(self.target_l1,
-          64, [4, 4], [2, 2], initializer, activation_fn, self.cnn_format, name='target_l2')
-      self.target_l3, self.t_w['l3_w'], self.t_w['l3_b'] = conv2d(self.target_l2,
-          64, [3, 3], [1, 1], initializer, activation_fn, self.cnn_format, name='target_l3')
+          32, [4, 4], [2, 2], initializer, activation_fn, self.cnn_format, name='target_l2')
 
       shape = self.target_l3.get_shape().as_list()
       self.target_l3_flat = tf.reshape(self.target_l3, [-1, reduce(lambda x, y: x * y, shape[1:])])
 
       if self.dueling:
         self.t_value_hid, self.t_w['l4_val_w'], self.t_w['l4_val_b'] = \
-            linear(self.target_l3_flat, 512, activation_fn=activation_fn, name='target_value_hid')
+            linear(self.target_l3_flat, 256, activation_fn=activation_fn, name='target_value_hid')
 
         self.t_adv_hid, self.t_w['l4_adv_w'], self.t_w['l4_adv_b'] = \
-            linear(self.target_l3_flat, 512, activation_fn=activation_fn, name='target_adv_hid')
+            linear(self.target_l3_flat, 256, activation_fn=activation_fn, name='target_adv_hid')
 
         self.t_value, self.t_w['val_w_out'], self.t_w['val_w_b'] = \
           linear(self.t_value_hid, 1, name='target_value_out')
@@ -291,7 +287,7 @@ class Agent(BaseModel):
           tf.reduce_mean(self.t_advantage, reduction_indices=1, keep_dims=True))
       else:
         self.target_l4, self.t_w['l4_w'], self.t_w['l4_b'] = \
-            linear(self.target_l3_flat, 512, activation_fn=activation_fn, name='target_l4')
+            linear(self.target_l3_flat, 256, activation_fn=activation_fn, name='target_l4')
         self.target_q, self.t_w['q_w'], self.t_w['q_b'] = \
             linear(self.target_l4, self.env.action_size, name='target_q')
 
@@ -314,10 +310,14 @@ class Agent(BaseModel):
       q_acted = tf.reduce_sum(self.q * action_one_hot, reduction_indices=1, name='q_acted')
 
       self.delta = self.target_q_t - q_acted
-      self.clipped_delta = tf.clip_by_value(self.delta, self.min_delta, self.max_delta, name='clipped_delta')
+      self.loss = tf.reduce_mean(tf.square(self.delta), name='loss')
 
-      self.loss = tf.reduce_mean(tf.square(self.clipped_delta), name='loss')
-      self.optim = self.optimizer.minimize(self.loss)
+      new_grads_and_vars = []
+      grads_and_vars = self.optimizer.compute_gradients(self.loss, self.w.values())
+      for grad, var in tuple(grads_and_vars):
+        new_grads_and_vars.append((tf.clip_by_norm(grad, 40), var))
+
+      self.optim = self.optimizer.apply_gradients(new_grads_and_vars)
 
     with tf.variable_scope('summary'):
       scalar_summary_tags = ['average.reward', 'average.loss', 'average.q', \

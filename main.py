@@ -68,10 +68,10 @@ def main(_):
         cluster=cluster)):
       lr_op = tf.placeholder('float', None, name='learning_rate')
       optimizer = tf.train.RMSPropOptimizer(
-          lr_op, momentum=0.95, epsilon=0.01)
+          lr_op, decay=0.99, momentum=0, epsilon=0.1)
       agent = Agent(config, env, optimizer, lr_op)
 
-      agent.ep_end = random.sample([0.1, 0.01, 0.05], 1)[0]
+      agent.ep_end = random.sample([0.1, 0.01, 0.5], 1)[0]
 
     print(agent.model_dir)
 
