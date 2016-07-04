@@ -33,7 +33,7 @@ class AgentConfig(object):
   double_q = False
   dueling = False
 
-  _test_step = 1 * scale
+  _test_step = 0.5 * scale
 
 class EnvironmentConfig(object):
   env_name = 'Breakout-v0'

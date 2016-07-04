@@ -30,7 +30,7 @@ class Agent(BaseModel):
     self.init_op = tf.initialize_all_variables()
 
   def before_train(self, is_chief):
-    self.step = self.step_op.eval(session=self.sess)
+    self.T = self.step = self.step_op.eval(session=self.sess)
     screen, reward, action, terminal = self.env.new_random_game()
 
     for _ in xrange(self.history_length):
@@ -127,7 +127,7 @@ class Agent(BaseModel):
               'episode.rewards': ep_rewards,
               'episode.actions': actions,
               'training.learning_rate': self.lr,
-            }, self.step)
+            }, self.T)
 
         num_game = 0
         total_reward = 0.
@@ -161,8 +161,8 @@ class Agent(BaseModel):
     if self.step % self.train_frequency == 0:
       self.batch_update(is_chief)
 
-    T = self.sess.run(self.step_inc_op)
-    if T % self.target_q_update_step == self.target_q_update_step - 1:
+    self.T = self.sess.run(self.step_inc_op)
+    if self.T % self.target_q_update_step == self.target_q_update_step - 1:
       self.update_target_q_network()
 
   def batch_update(self, is_chief):
