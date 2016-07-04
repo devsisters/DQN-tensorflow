@@ -51,7 +51,7 @@ def main(_):
 
   cluster = tf.train.ClusterSpec({"ps": ps_hosts, "worker": worker_hosts})
   server_config = tf.ConfigProto(
-      gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=0.1), log_device_placement=True)
+      gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=0.15), log_device_placement=True)
 
   server = tf.train.Server(cluster,
                            config=server_config,
