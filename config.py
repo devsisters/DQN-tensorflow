@@ -25,7 +25,7 @@ class AgentConfig(object):
   history_length = 4
   batch_size = 32
   train_frequency = batch_size
-  learn_start = 5. * scale
+  learn_start = batch_size
 
   min_delta = -1
   max_delta = 1
