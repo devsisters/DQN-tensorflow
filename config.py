@@ -3,9 +3,7 @@ class AgentConfig(object):
   display = False
 
   max_step = 5000 * scale
-  memory_size = 1 * scale
 
-  batch_size = 32
   random_start = 30
   cnn_format = 'NCHW'
   discount = 0.99
@@ -22,10 +20,11 @@ class AgentConfig(object):
 
   ep_end = 0.1
   ep_start = 1.
-  ep_end_t = memory_size
+  ep_end_t = 100 * scale
 
   history_length = 4
-  train_frequency = 4
+  batch_size = 32
+  train_frequency = batch_size
   learn_start = 5. * scale
 
   min_delta = -1

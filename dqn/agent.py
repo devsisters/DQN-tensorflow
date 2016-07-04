@@ -8,7 +8,6 @@ import tensorflow as tf
 from .base import BaseModel
 from .history import History
 from .ops import linear, conv2d
-from .replay_memory import ReplayMemory
 from utils import get_time
 
 class Agent(BaseModel):
@@ -18,7 +17,6 @@ class Agent(BaseModel):
 
     self.env = environment
     self.history = History(self.config)
-    self.memory = ReplayMemory(self.config, self.model_dir)
 
     self.lr_op = lr_op
     self.optimizer = optimizer
@@ -31,17 +29,27 @@ class Agent(BaseModel):
     self.summary_op = tf.merge_all_summaries()
     self.init_op = tf.initialize_all_variables()
 
-  def train(self, sv, is_chief):
+  def before_train(self, is_chief):
     self.step = self.step_op.eval(session=self.sess)
     screen, reward, action, terminal = self.env.new_random_game()
 
     for _ in xrange(self.history_length):
       self.history.add(screen)
 
+    self.batch_s_t = [self.history.copy()]
+    self.batch_reward = []
+    self.batch_action = []
+    self.batch_terminal = []
+
     if is_chief:
       iterator = tqdm(xrange(self.step, self.max_step), ncols=70, initial=self.step)
     else:
       iterator = xrange(self.step, self.max_step)
+
+    return screen, reward, action, terminal, iterator
+
+  def train(self, sv, is_chief):
+    screen, reward, action, terminal, iterator = self.before_train(is_chief)
 
     for _ in iterator:
       if self.step >= self.max_step:
@@ -58,20 +66,11 @@ class Agent(BaseModel):
         screen, reward, action, terminal = self.env.new_random_game()
 
   def train_with_summary(self, sv, is_chief):
-    self.step = self.step_op.eval(session=self.sess)
-    screen, reward, action, terminal = self.env.new_random_game()
+    screen, reward, action, terminal, iterator = self.before_train(is_chief)
 
     num_game, self.update_count, ep_reward = 0, 0, 0.
     total_reward, self.total_loss, self.total_q = 0., 0., 0.
     ep_rewards, actions = [], []
-
-    for _ in xrange(self.history_length):
-      self.history.add(screen)
-
-    if is_chief:
-      iterator = tqdm(xrange(self.step, self.max_step), ncols=70, initial=self.step)
-    else:
-      iterator = xrange(self.step, self.max_step)
 
     for _ in iterator:
       if self.step >= self.max_step:
@@ -158,20 +157,23 @@ class Agent(BaseModel):
     reward = max(self.min_reward, min(self.max_reward, reward))
 
     self.history.add(screen)
-    self.memory.add(screen, reward, action, terminal)
+    self.batch_s_t.append(self.history.copy())
+    self.batch_action.append(action)
+    self.batch_reward.append(reward)
+    self.batch_terminal.append(terminal)
 
-    if self.step > self.learn_start:
-      if self.step % self.train_frequency == 0:
-        self.q_learning_mini_batch(is_chief)
+    if self.step % self.train_frequency == 0:
+      self.batch_update(is_chief)
 
-      if self.step % self.target_q_update_step == self.target_q_update_step - 1:
-        self.update_target_q_network()
+    if self.step % self.target_q_update_step == self.target_q_update_step - 1:
+      self.update_target_q_network()
 
-  def q_learning_mini_batch(self, is_chief):
-    if self.memory.count <= self.history_length:
-      return
-    else:
-      s_t, action, reward, s_t_plus_1, terminal = self.memory.sample()
+  def batch_update(self, is_chief):
+    s_t, action, reward, s_t_plus_1, terminal = \
+        self.batch_s_t[:-1], self.batch_action, self.batch_reward, self.batch_s_t[1:], self.batch_terminal
+
+    #assert len(s_t) == self.batch_size and len(action) == self.batch_size
+    #assert np.array_equal(s_t[0][1:], s_t_plus_1[0][:-1])
 
     if self.double_q:
       # Double Q-learning
@@ -200,6 +202,11 @@ class Agent(BaseModel):
       self.total_loss += loss
       self.total_q += q_t.mean()
       self.update_count += 1
+
+    self.batch_s_t = [self.history.copy()]
+    self.batch_reward = []
+    self.batch_action = []
+    self.batch_terminal = []
 
   def build_dqn(self):
     self.w = {}

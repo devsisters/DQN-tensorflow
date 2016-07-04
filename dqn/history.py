@@ -22,3 +22,6 @@ class History:
       return np.transpose(self.history, (1, 2, 0))
     else:
       return self.history
+
+  def copy(self):
+    return self.history.copy()
