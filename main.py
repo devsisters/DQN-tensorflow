@@ -71,7 +71,7 @@ def main(_):
           lr_op, momentum=0.95, epsilon=0.01)
       agent = Agent(config, env, optimizer, lr_op)
 
-      agent.ep_end = random.sample([0.1, 0.01, 0.5], 1)[0]
+      agent.ep_end = random.sample([0.1, 0.01, 0.05], 1)[0]
 
     print(agent.model_dir)
 

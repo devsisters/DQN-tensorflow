@@ -22,7 +22,7 @@ class Agent(BaseModel):
     self.optimizer = optimizer
 
     self.step_op = tf.Variable(0, trainable=False, name='step')
-    self.step_inc_op = self.step_op.assign_add(1)
+    self.step_inc_op = self.step_op.assign_add(1, use_locking=True)
     self.build_dqn()
 
     self.saver = tf.train.Saver(self.w.values() + [self.step_op], max_to_keep=30)
@@ -51,7 +51,7 @@ class Agent(BaseModel):
   def train(self, sv, is_chief):
     screen, reward, action, terminal, iterator = self.before_train(is_chief)
 
-    for _ in iterator:
+    for self.step in iterator:
       if self.step >= self.max_step:
         sv.request_stop()
 
@@ -72,7 +72,7 @@ class Agent(BaseModel):
     total_reward, self.total_loss, self.total_q = 0., 0., 0.
     ep_rewards, actions = [], []
 
-    for _ in iterator:
+    for self.step in iterator:
       if self.step >= self.max_step:
         sv.request_stop()
 
@@ -138,9 +138,6 @@ class Agent(BaseModel):
         actions = []
 
   def predict(self, s_t, test_ep=None):
-    self.step_inc_op.eval(session=self.sess)
-    self.step = self.step_op.eval(session=self.sess)
-
     ep = test_ep or (self.ep_end +
         max(0., (self.ep_start - self.ep_end)
           * (self.ep_end_t - max(0., self.step - self.learn_start)) / self.ep_end_t))
@@ -164,7 +161,8 @@ class Agent(BaseModel):
     if self.step % self.train_frequency == 0:
       self.batch_update(is_chief)
 
-    if self.step % self.target_q_update_step == self.target_q_update_step - 1:
+    T = self.sess.run(self.step_inc_op)
+    if T % self.target_q_update_step == self.target_q_update_step - 1:
       self.update_target_q_network()
 
   def batch_update(self, is_chief):
