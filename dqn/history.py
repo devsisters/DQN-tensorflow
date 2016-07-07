@@ -24,4 +24,4 @@ class History:
       return self.history
 
   def copy(self):
-    return self.history.copy()
+    return self.get().copy()
