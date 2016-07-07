@@ -17,7 +17,7 @@ ps_hosts=`join , "${ps_ports[@]}"`
 worker_hosts=`join , "${worker_ports[@]}"`
 
 for ((i=0;i<$ps_num;i++)); do
-  echo_and_run CUDA_VISIBLE_DEVICES='' python main.py \
+  echo_and_run python main.py \
       --ps_hosts=$ps_hosts \
       --worker_hosts=$worker_hosts \
       --job_name=ps --task_index=$i "$@" \&
@@ -33,8 +33,7 @@ else
 fi
 
 for ((i=0;i<$worker_num;i++)); do
-#  echo_and_run CUDA_VISIBLE_DEVICES=$((($i+$add)/$denom)) python main.py \
-  echo_and_run CUDA_VISIBLE_DEVICES='' python main.py \
+  echo_and_run python main.py \
       --ps_hosts=$ps_hosts \
       --worker_hosts=$worker_hosts \
       --job_name=worker --task_index=$i "$@" \&

@@ -29,7 +29,7 @@ flags.DEFINE_string("job_name", "", "One of 'ps', 'worker'")
 flags.DEFINE_integer("task_index", 0, "Index of task within the job")
 
 # Misc
-flags.DEFINE_boolean('use_gpu', True, 'Whether to use gpu or not')
+flags.DEFINE_boolean('use_gpu', False, 'Whether to use gpu or not')
 flags.DEFINE_string('gpu_fraction', '1/1', 'idx / # of gpu fraction e.g. 1/3, 2/3, 3/3')
 flags.DEFINE_boolean('display', False, 'Whether to do display the game screen or not')
 flags.DEFINE_boolean('is_train', True, 'Whether to do training or testing')
@@ -50,11 +50,7 @@ def main(_):
   worker_hosts = FLAGS.worker_hosts.split(",")
 
   cluster = tf.train.ClusterSpec({"ps": ps_hosts, "worker": worker_hosts})
-  server_config = tf.ConfigProto(
-      gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=0.1), log_device_placement=True)
-
   server = tf.train.Server(cluster,
-                           config=server_config,
                            job_name=FLAGS.job_name,
                            task_index=FLAGS.task_index)
 
@@ -68,10 +64,10 @@ def main(_):
         cluster=cluster)):
       lr_op = tf.placeholder('float', None, name='learning_rate')
       optimizer = tf.train.RMSPropOptimizer(
-          lr_op, momentum=0.95, epsilon=0.01)
+          lr_op, decay=0.99, momentum=0, epsilon=0.1)
       agent = Agent(config, env, optimizer, lr_op)
 
-      agent.ep_end = random.sample([0.1, 0.01, 0.05], 1)[0]
+      agent.ep_end = random.sample([0.1, 0.01, 0.5], 1)[0]
 
     print(agent.model_dir)
 

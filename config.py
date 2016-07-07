@@ -7,11 +7,8 @@ class AgentConfig(object):
   random_start = 30
   cnn_format = 'NCHW'
   discount = 0.99
-  target_q_update_step = 1 * scale
+  target_q_update_step = 4 * scale
   learning_rate = 0.0007
-  learning_rate_minimum = 0.0007
-  learning_rate_decay = 0.96
-  learning_rate_decay_step = 5 * scale
 
   decay = 0.99
   epsilon = 0.1
@@ -20,7 +17,7 @@ class AgentConfig(object):
 
   ep_end = 0.1
   ep_start = 1.
-  ep_end_t = 100 * scale
+  ep_end_t = 400 * scale
 
   history_length = 4
   batch_size = 32
