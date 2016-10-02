@@ -184,10 +184,10 @@ class Agent(BaseModel):
     with tf.variable_scope('prediction'):
       if self.cnn_format == 'NHWC':
         self.s_t = tf.placeholder('float32',
-            [None, self.screen_width, self.screen_height, self.history_length], name='s_t')
+            [None, self.screen_height, self.screen_width, self.history_length], name='s_t')
       else:
         self.s_t = tf.placeholder('float32',
-            [None, self.history_length, self.screen_width, self.screen_height], name='s_t')
+            [None, self.history_length, self.screen_height, self.screen_width], name='s_t')
 
       self.l1, self.w['l1_w'], self.w['l1_b'] = conv2d(self.s_t,
           32, [8, 8], [4, 4], initializer, activation_fn, self.cnn_format, name='l1')
