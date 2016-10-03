@@ -184,10 +184,10 @@ class Agent(BaseModel):
     with tf.variable_scope('prediction'):
       if self.cnn_format == 'NHWC':
         self.s_t = tf.placeholder('float32',
-            [None, self.screen_width, self.screen_height, self.history_length], name='s_t')
+            [None, self.screen_height, self.screen_width, self.history_length], name='s_t')
       else:
         self.s_t = tf.placeholder('float32',
-            [None, self.history_length, self.screen_width, self.screen_height], name='s_t')
+            [None, self.history_length, self.screen_height, self.screen_width], name='s_t')
 
       self.l1, self.w['l1_w'], self.w['l1_b'] = conv2d(self.s_t,
           32, [8, 8], [4, 4], initializer, activation_fn, self.cnn_format, name='l1')
@@ -231,10 +231,10 @@ class Agent(BaseModel):
     with tf.variable_scope('target'):
       if self.cnn_format == 'NHWC':
         self.target_s_t = tf.placeholder('float32', 
-            [None, self.screen_width, self.screen_height, self.history_length], name='target_s_t')
+            [None, self.screen_height, self.screen_width, self.history_length], name='target_s_t')
       else:
         self.target_s_t = tf.placeholder('float32', 
-            [None, self.history_length, self.screen_width, self.screen_height], name='target_s_t')
+            [None, self.history_length, self.screen_height, self.screen_width], name='target_s_t')
 
       self.target_l1, self.t_w['l1_w'], self.t_w['l1_b'] = conv2d(self.target_s_t, 
           32, [8, 8], [4, 4], initializer, activation_fn, self.cnn_format, name='target_l1')
