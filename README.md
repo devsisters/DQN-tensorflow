@@ -19,7 +19,7 @@ This implementation contains:
 - [gym](https://github.com/openai/gym)
 - [tqdm](https://github.com/tqdm/tqdm)
 - [OpenCV2](http://opencv.org/)
-- [TensorFlow](https://www.tensorflow.org/)
+- [TensorFlow 0.8.0](https://github.com/tensorflow/tensorflow/tree/r0.8)
 
 
 ## Usage

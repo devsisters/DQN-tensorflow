@@ -3,7 +3,10 @@ from tensorflow.contrib.layers.python.layers import initializers
 
 def clipped_error(x):
   # Huber loss
-  return tf.select(tf.abs(x) < 1.0, 0.5 * tf.square(x), tf.abs(x) - 0.5)
+  try:
+    return tf.select(tf.abs(x) < 1.0, 0.5 * tf.square(x), tf.abs(x) - 0.5)
+  except:
+    return tf.where(tf.abs(x) < 1.0, 0.5 * tf.square(x), tf.abs(x) - 0.5)
 
 def conv2d(x,
            output_dim,
