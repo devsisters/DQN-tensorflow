@@ -7,8 +7,8 @@ import tensorflow as tf
 
 from .base import BaseModel
 from .history import History
-from .ops import linear, conv2d
 from .replay_memory import ReplayMemory
+from .ops import linear, conv2d, clipped_error
 from utils import get_time, save_pkl, load_pkl
 
 class Agent(BaseModel):
@@ -288,11 +288,10 @@ class Agent(BaseModel):
       q_acted = tf.reduce_sum(self.q * action_one_hot, reduction_indices=1, name='q_acted')
 
       self.delta = self.target_q_t - q_acted
-      self.clipped_delta = tf.clip_by_value(self.delta, self.min_delta, self.max_delta, name='clipped_delta')
 
       self.global_step = tf.Variable(0, trainable=False)
 
-      self.loss = tf.reduce_mean(tf.square(self.clipped_delta), name='loss')
+      self.loss = tf.reduce_mean(clipped_error(self.delta), name='loss')
       self.learning_rate_step = tf.placeholder('int64', None, name='learning_rate_step')
       self.learning_rate_op = tf.maximum(self.learning_rate_minimum,
           tf.train.exponential_decay(
