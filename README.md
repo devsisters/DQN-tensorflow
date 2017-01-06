@@ -18,8 +18,8 @@ This implementation contains:
 - Python 2.7 or Python 3.3+
 - [gym](https://github.com/openai/gym)
 - [tqdm](https://github.com/tqdm/tqdm)
-- [OpenCV2](http://opencv.org/)
-- [TensorFlow 0.8.0](https://github.com/tensorflow/tensorflow/tree/r0.8)
+- [SciPy](http://www.scipy.org/install.html) or [OpenCV2](http://opencv.org/)
+- [TensorFlow 0.12.0](https://github.com/tensorflow/tensorflow/tree/r0.12)
 
 
 ## Usage
