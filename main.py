@@ -52,6 +52,9 @@ def main(_):
     else:
       env = GymEnvironment(config)
 
+    if not tf.test.is_gpu_available() and FLAGS.use_gpu:
+      raise Exception("use_gpu flag is true when no GPUs are available")
+
     if not FLAGS.use_gpu:
       config.cnn_format = 'NHWC'
 
