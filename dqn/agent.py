@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os
 import time
 import random
@@ -9,7 +10,7 @@ from .base import BaseModel
 from .history import History
 from .replay_memory import ReplayMemory
 from .ops import linear, conv2d, clipped_error
-from utils import get_time, save_pkl, load_pkl
+from .utils import get_time, save_pkl, load_pkl
 
 class Agent(BaseModel):
   def __init__(self, config, environment, sess):
@@ -80,8 +81,8 @@ class Agent(BaseModel):
           except:
             max_ep_reward, min_ep_reward, avg_ep_reward = 0, 0, 0
 
-          print '\navg_r: %.4f, avg_l: %.6f, avg_q: %3.6f, avg_ep_r: %.4f, max_ep_r: %.4f, min_ep_r: %.4f, # game: %d' \
-              % (avg_reward, avg_loss, avg_q, avg_ep_reward, max_ep_reward, min_ep_reward, num_game)
+          print('\navg_r: %.4f, avg_l: %.6f, avg_q: %3.6f, avg_ep_r: %.4f, max_ep_r: %.4f, min_ep_r: %.4f, # game: %d' \
+              % (avg_reward, avg_loss, avg_q, avg_ep_reward, max_ep_reward, min_ep_reward, num_game))
 
           if max_avg_ep_reward * 0.9 <= avg_ep_reward:
             self.step_assign_op.eval({self.step_input: self.step + 1})
@@ -395,9 +396,9 @@ class Agent(BaseModel):
         best_reward = current_reward
         best_idx = idx
 
-      print "="*30
-      print " [%d] Best reward : %d" % (best_idx, best_reward)
-      print "="*30
+      print("="*30)
+      print(" [%d] Best reward : %d" % (best_idx, best_reward))
+      print("="*30)
 
     if not self.display:
       self.env.env.monitor.close()
