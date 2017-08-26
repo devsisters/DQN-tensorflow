@@ -26,7 +26,7 @@ This implementation contains:
 
 First, install prerequisites with:
 
-    $ pip install tqdm gym[all]
+    $ pip install tqdm gym[all]==0.7.0
 
 To train a model for Breakout:
 
