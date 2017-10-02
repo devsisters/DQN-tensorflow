@@ -4,13 +4,15 @@ import time
 import random
 import numpy as np
 from tqdm import tqdm
-import tensorflow as tf
+import gym
 
 from .base import BaseModel
 from .history import History
 from .replay_memory import ReplayMemory
 from .ops import linear, conv2d, clipped_error
 from .utils import get_time, save_pkl, load_pkl
+import tensorflow as tf
+import functools
 
 class Agent(BaseModel):
   def __init__(self, config, environment, sess):
@@ -198,7 +200,7 @@ class Agent(BaseModel):
           64, [3, 3], [1, 1], initializer, activation_fn, self.cnn_format, name='l3')
 
       shape = self.l3.get_shape().as_list()
-      self.l3_flat = tf.reshape(self.l3, [-1, reduce(lambda x, y: x * y, shape[1:])])
+      self.l3_flat = tf.reshape(self.l3, [-1, functools.reduce(lambda x, y: x * y, shape[1:])])
 
       if self.dueling:
         self.value_hid, self.w['l4_val_w'], self.w['l4_val_b'] = \
@@ -214,7 +216,7 @@ class Agent(BaseModel):
           linear(self.adv_hid, self.env.action_size, name='adv_out')
 
         # Average Dueling
-        self.q = self.value + (self.advantage - 
+        self.q = self.value + (self.advantage -
           tf.reduce_mean(self.advantage, reduction_indices=1, keep_dims=True))
       else:
         self.l4, self.w['l4_w'], self.w['l4_b'] = linear(self.l3_flat, 512, activation_fn=activation_fn, name='l4')
@@ -224,20 +226,20 @@ class Agent(BaseModel):
 
       q_summary = []
       avg_q = tf.reduce_mean(self.q, 0)
-      for idx in xrange(self.env.action_size):
+      for idx in range(self.env.action_size):
         q_summary.append(tf.summary.histogram('q/%s' % idx, avg_q[idx]))
       self.q_summary = tf.summary.merge(q_summary, 'q_summary')
 
     # target network
     with tf.variable_scope('target'):
       if self.cnn_format == 'NHWC':
-        self.target_s_t = tf.placeholder('float32', 
+        self.target_s_t = tf.placeholder('float32',
             [None, self.screen_height, self.screen_width, self.history_length], name='target_s_t')
       else:
-        self.target_s_t = tf.placeholder('float32', 
+        self.target_s_t = tf.placeholder('float32',
             [None, self.history_length, self.screen_height, self.screen_width], name='target_s_t')
 
-      self.target_l1, self.t_w['l1_w'], self.t_w['l1_b'] = conv2d(self.target_s_t, 
+      self.target_l1, self.t_w['l1_w'], self.t_w['l1_b'] = conv2d(self.target_s_t,
           32, [8, 8], [4, 4], initializer, activation_fn, self.cnn_format, name='target_l1')
       self.target_l2, self.t_w['l2_w'], self.t_w['l2_b'] = conv2d(self.target_l1,
           64, [4, 4], [2, 2], initializer, activation_fn, self.cnn_format, name='target_l2')
@@ -245,7 +247,7 @@ class Agent(BaseModel):
           64, [3, 3], [1, 1], initializer, activation_fn, self.cnn_format, name='target_l3')
 
       shape = self.target_l3.get_shape().as_list()
-      self.target_l3_flat = tf.reshape(self.target_l3, [-1, reduce(lambda x, y: x * y, shape[1:])])
+      self.target_l3_flat = tf.reshape(self.target_l3, [-1, functools.reduce(lambda x, y: x * y, shape[1:])])
 
       if self.dueling:
         self.t_value_hid, self.t_w['l4_val_w'], self.t_w['l4_val_b'] = \
@@ -261,7 +263,7 @@ class Agent(BaseModel):
           linear(self.t_adv_hid, self.env.action_size, name='target_adv_out')
 
         # Average Dueling
-        self.target_q = self.t_value + (self.t_advantage - 
+        self.target_q = self.t_value + (self.t_advantage -
           tf.reduce_mean(self.t_advantage, reduction_indices=1, keep_dims=True))
       else:
         self.target_l4, self.t_w['l4_w'], self.t_w['l4_b'] = \
@@ -323,9 +325,9 @@ class Agent(BaseModel):
 
       self.writer = tf.summary.FileWriter('./logs/%s' % self.model_dir, self.sess.graph)
 
-    tf.initialize_all_variables().run()
+    tf.global_variables_initializer().run()
 
-    self._saver = tf.train.Saver(self.w.values() + [self.step_op], max_to_keep=30)
+    self._saver = tf.train.Saver(list(self.w.values()) + [self.step_op], max_to_keep=30)
 
     self.load_model()
     self.update_target_q_network()
@@ -370,10 +372,10 @@ class Agent(BaseModel):
 
     if not self.display:
       gym_dir = '/tmp/%s-%s' % (self.env_name, get_time())
-      self.env.env.monitor.start(gym_dir)
+      self.env = gym.wrappers.Monitor(self.env, gym_dir)
 
     best_reward, best_idx = 0, 0
-    for idx in xrange(n_episode):
+    for idx in range(n_episode):
       screen, reward, action, terminal = self.env.new_random_game()
       current_reward = 0
 
