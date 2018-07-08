@@ -11,7 +11,7 @@ class Environment(object):
         config.screen_width, config.screen_height, config.action_repeat, config.random_start
 
     self.display = config.display
-    self.dims = (screen_width, screen_height)
+    self.dims = (screen_height, screen_width)
 
     self._screen = None
     self.reward = 0
@@ -26,7 +26,7 @@ class Environment(object):
 
   def new_random_game(self):
     self.new_game(True)
-    for _ in xrange(random.randint(0, self.random_start - 1)):
+    for _ in range(random.randint(0, self.random_start - 1)):
       self._step(0)
     self.render()
     return self.screen, 0, 0, self.terminal
@@ -70,7 +70,7 @@ class GymEnvironment(Environment):
     cumulated_reward = 0
     start_lives = self.lives
 
-    for _ in xrange(self.action_repeat):
+    for _ in range(self.action_repeat):
       self._step(action)
       cumulated_reward = cumulated_reward + self.reward
 
