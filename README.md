@@ -1,6 +1,6 @@
 # Human-Level Control through Deep Reinforcement Learning
 
-Tensorflow implementation of [Human-Level Control through Deep Reinforcement Learning](http://home.uchicago.edu/~arij/journalclub/papers/2015_Mnih_et_al.pdf).
+Tensorflow implementation of [Human-Level Control through Deep Reinforcement Learning](https://storage.googleapis.com/deepmind-media/dqn/DQNNaturePaper.pdf).
 
 ![model](assets/model.png)
 
